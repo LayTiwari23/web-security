@@ -1,0 +1,120 @@
+# compose/docker-compose.prod.yml
+
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    container_name: websec_api_prod
+    command: >
+      uvicorn src.app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 4
+    # In prod, you typically don't mount source code as a volume
+    env_file:
+      - ../.env   # create/populate this for prod
+    environment:
+      APP_ENV: production
+      # You can also move these into .env entirely
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://websec_user:websec_pass@db:5432/websec_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    container_name: websec_worker_prod
+    command: >
+      celery
+      -A src.app.workers.celery_app.celery_app
+      worker
+      --loglevel=INFO
+    env_file:
+      - ../.env
+    environment:
+      APP_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://websec_user:websec_pass@db:5432/websec_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    container_name: websec_beat_prod
+    command: >
+      celery
+      -A src.app.workers.celery_app.celery_app
+      beat
+      --loglevel=INFO
+    env_file:
+      - ../.env
+    environment:
+      APP_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://websec_user:websec_pass@db:5432/websec_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/nginx.Dockerfile
+    container_name: websec_nginx_prod
+    # In prod, you might mount TLS certs, custom configs, etc.
+    volumes:
+      # If app image has static files baked in, you don’t need this.
+      # If you prefer a shared volume, use that instead.
+      - static_files:/app/static
+      # Optionally override config from host:
+      # - ./nginx.prod.conf:/etc/nginx/conf.d/app.conf:ro
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      # - "443:443"  # if you terminate TLS at Nginx
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: websec_db_prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-websec_db}
+      POSTGRES_USER: ${POSTGRES_USER:-websec_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-websec_pass}
+    volumes:
+      - websec_db_data_prod:/var/lib/postgresql/data
+    # In production you often don't expose DB directly to host
+    # ports:
+    #   - "5432:5432"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: websec_redis_prod
+    # Same: not usually exposed outside the Docker network
+    # ports:
+    #   - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  websec_db_data_prod:
+  static_files:

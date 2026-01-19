@@ -1,0 +1,37 @@
+<!-- src/app/templates/dashboard.html -->
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Web Security Compliance Checker{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1>Dashboard</h1>
+
+    <section class="dashboard-intro">
+        <p>
+            Welcome to the Web Security Compliance Checker.
+            Use this dashboard to manage your targets, run scans, and download PDF reports.
+        </p>
+    </section>
+
+    <section class="dashboard-actions">
+        <div class="card">
+            <h2>Targets</h2>
+            <p>Manage the websites and applications you want to scan.</p>
+            <a class="btn" href="/api/v1/targets/html">View Targets</a>
+        </div>
+
+        <div class="card">
+            <h2>Scans</h2>
+            <p>Review past scans and start new ones for your targets.</p>
+            <a class="btn" href="/api/v1/scans/html">View Scans</a>
+        </div>
+
+        <div class="card">
+            <h2>Reports</h2>
+            <p>Download or delete generated PDF reports.</p>
+            <a class="btn" href="/api/v1/reports/html">View Reports</a>
+        </div>
+    </section>
+</div>
+{% endblock %}

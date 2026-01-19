@@ -1,0 +1,68 @@
+<!-- src/app/templates/scans/list.html -->
+{% extends "base.html" %}
+
+{% block title %}Scans - Web Security Compliance Checker{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <h1>Your Scans</h1>
+
+    <section class="section">
+        {% if scans %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Started</th>
+                        <th>Finished</th>
+                        <th>Summary</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for scan in scans %}
+                    <tr>
+                        <td>{{ scan.id }}</td>
+                        <td>
+                            {% if scan.target is defined and scan.target %}
+                                {{ scan.target.url }}
+                            {% else %}
+                                {{ scan.target_id }}
+                            {% endif %}
+                        </td>
+                        <td>{{ scan.status }}</td>
+                        <td>{{ scan.created_at }}</td>
+                        <td>{{ scan.started_at or "-" }}</td>
+                        <td>{{ scan.finished_at or "-" }}</td>
+                        <td>{{ scan.summary or "-" }}</td>
+                        <td>
+                            <a href="/api/v1/scans/{{ scan.id }}/html" class="btn-secondary">
+                                View
+                            </a>
+                            <form
+                                method="post"
+                                action="/api/v1/reports/{{ scan.id }}/generate/html"
+                                style="display:inline;"
+                            >
+                                <button type="submit" class="btn-secondary">
+                                    Generate Report
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>
+                No scans found yet. Go to
+                <a href="/api/v1/targets/html">Targets</a>
+                and start a scan.
+            </p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

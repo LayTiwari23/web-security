@@ -1,0 +1,296 @@
+/* src/app/static/css/main.css */
+
+/* Basic reset */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background-color: #f5f7fa;
+    color: #222;
+}
+
+/* Layout */
+
+header {
+    background-color: #1e293b;
+    color: #fff;
+}
+
+.navbar {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.navbar-brand a {
+    color: #e5e7eb;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.navbar-menu {
+    list-style: none;
+    display: flex;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+}
+
+.navbar-menu a,
+.btn-link {
+    color: #e5e7eb;
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+
+.navbar-menu a:hover,
+.btn-link:hover {
+    color: #ffffff;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+/* Main container */
+
+main {
+    max-width: 1100px;
+    margin: 1.5rem auto 2rem;
+    padding: 0 1rem;
+}
+
+.page-container,
+.dashboard-container,
+.auth-container {
+    background-color: #ffffff;
+    border-radius: 6px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+/* Headings */
+
+h1 {
+    font-size: 1.6rem;
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+h2 {
+    font-size: 1.2rem;
+    margin-top: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Sections */
+
+.section {
+    margin-bottom: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 1rem;
+}
+
+/* Forms */
+
+.simple-form,
+.auth-form {
+    max-width: 480px;
+}
+
+.form-group {
+    margin-bottom: 0.75rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.95rem;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.4);
+}
+
+.form-actions {
+    margin-top: 0.75rem;
+}
+
+/* Buttons */
+
+button,
+.btn,
+.btn-secondary,
+.btn-danger {
+    display: inline-block;
+    padding: 0.4rem 0.9rem;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-decoration: none;
+    background-color: #2563eb;
+    color: #ffffff;
+}
+
+button:hover,
+.btn:hover {
+    background-color: #1d4ed8;
+}
+
+.btn-secondary {
+    background-color: #4b5563;
+}
+
+.btn-secondary:hover {
+    background-color: #374151;
+}
+
+.btn-danger {
+    background-color: #dc2626;
+}
+
+.btn-danger:hover {
+    background-color: #b91c1c;
+}
+
+/* Tables */
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+    border: 1px solid #e5e7eb;
+    padding: 0.45rem 0.5rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.table th {
+    background-color: #f3f4f6;
+    font-weight: 600;
+}
+
+.table-compact th,
+.table-compact td {
+    padding: 0.3rem 0.45rem;
+}
+
+/* Alerts */
+
+.alert {
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.alert-error {
+    border: 1px solid #fecaca;
+    background-color: #fee2e2;
+    color: #7f1d1d;
+}
+
+/* Auth pages */
+
+.auth-container {
+    max-width: 420px;
+    margin: 2rem auto;
+}
+
+.auth-toggle {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+}
+
+/* Dashboard */
+
+.dashboard-intro {
+    margin-bottom: 1rem;
+}
+
+.dashboard-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.card {
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    padding: 1rem;
+    background-color: #f9fafb;
+}
+
+.card h2 {
+    margin-top: 0;
+}
+
+/* Severity coloring */
+
+.severity {
+    font-weight: 600;
+}
+
+tr.severity-low .severity {
+    color: #15803d;
+}
+
+tr.severity-medium .severity {
+    color: #d97706;
+}
+
+tr.severity-high .severity,
+tr.severity-critical .severity {
+    color: #b91c1c;
+}
+
+/* Footer */
+
+footer {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #6b7280;
+    padding: 1rem 0;
+}
+
+/* Links */
+
+a {
+    color: #2563eb;
+}
+
+a:hover {
+    color: #1d4ed8;
+}

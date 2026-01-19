@@ -1,0 +1,130 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    container_name: websec_api
+    command: >
+      uvicorn src.app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+    volumes:
+      - ../src:/app/src
+      - ../alembic:/app/alembic
+      - ../alembic.ini:/app/alembic.ini
+      - ../src/app/static:/app/static
+    env_file:
+      - .env
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg2://websec_user:websec_pass@db:5432/websec_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      BACKEND_CORS_ORIGINS: '["http://localhost", "http://localhost:8000", "http://localhost:3000"]'
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    container_name: websec_worker
+    command: >
+      celery
+      -A src.workers.celery_app.celery_app
+      worker
+      --loglevel=INFO
+    volumes:
+      - ../src:/app/src
+      - ../alembic:/app/alembic
+      - ../alembic.ini:/app/alembic.ini
+    env_file:
+      - .env
+    environment:
+      APP_ENV: development
+      PYTHONPATH: .  # <--- ADD THIS LINE
+      DATABASE_URL: postgresql+psycopg2://websec_user:websec_pass@db:5432/websec_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      
+      BACKEND_CORS_ORIGINS: '["http://localhost", "http://localhost:8000", "http://localhost:3000"]'
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    container_name: websec_beat
+    # 👇 UPDATED COMMAND: Added -s /tmp/celerybeat-schedule
+    command: >
+      celery
+      -A src.workers.celery_app.celery_app
+      beat
+      --loglevel=INFO
+      -s /tmp/celerybeat-schedule
+    volumes:
+      - ../src:/app/src
+      - ../alembic:/app/alembic
+      - ../alembic.ini:/app/alembic.ini
+    env_file:
+      - .env
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg2://websec_user:websec_pass@db:5432/websec_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      BACKEND_CORS_ORIGINS: '["http://localhost", "http://localhost:8000", "http://localhost:3000"]'
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/nginx.Dockerfile
+    container_name: websec_nginx
+    volumes:
+     - ../src/app/static:/app/static
+     - ../nginx/nginx.conf:/etc/nginx/conf.d/app.conf
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: websec_db
+    environment:
+      POSTGRES_DB: websec_db
+      POSTGRES_USER: websec_user
+      POSTGRES_PASSWORD: websec_pass
+    volumes:
+      - websec_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: websec_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  websec_db_data:

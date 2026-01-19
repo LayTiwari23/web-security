@@ -1,0 +1,111 @@
+<!-- src/app/templates/scans/detail.html -->
+{% extends "base.html" %}
+
+{% block title %}Scan #{{ scan.id }} - Web Security Compliance Checker{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <h1>Scan #{{ scan.id }}</h1>
+
+    <section class="section">
+        <h2>Overview</h2>
+        <table class="table table-compact">
+            <tr>
+                <th>Target</th>
+                <td>
+                    {% if scan.target is defined and scan.target %}
+                        {{ scan.target.url }}
+                    {% else %}
+                        Target ID: {{ scan.target_id }}
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Status</th>
+                <td>{{ scan.status }}</td>
+            </tr>
+            <tr>
+                <th>Created at</th>
+                <td>{{ scan.created_at }}</td>
+            </tr>
+            <tr>
+                <th>Started at</th>
+                <td>{{ scan.started_at or "-" }}</td>
+            </tr>
+            <tr>
+                <th>Finished at</th>
+                <td>{{ scan.finished_at or "-" }}</td>
+            </tr>
+            <tr>
+                <th>Summary</th>
+                <td>{{ scan.summary or "No summary available." }}</td>
+            </tr>
+        </table>
+    </section>
+
+    <section class="section">
+        <h2>Findings ({{ findings|length }})</h2>
+
+        {% if findings %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Check Type</th>
+                        <th>Name</th>
+                        <th>Severity</th>
+                        <th>Description</th>
+                        <th>Recommendation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for f in findings %}
+                    <tr class="severity-{{ f.severity|lower }}">
+                        <td>{{ f.id }}</td>
+                        <td>{{ f.check_type }}</td>
+                        <td>{{ f.name }}</td>
+                        <td class="severity">{{ f.severity }}</td>
+                        <td>{{ f.description or "-" }}</td>
+                        <td>{{ f.recommendation or "-" }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No findings recorded for this scan.</p>
+        {% endif %}
+    </section>
+
+    <section class="section">
+        <h2>PDF Reports</h2>
+
+        {% if pdf_reports %}
+            <ul class="report-list">
+                {% for report in pdf_reports %}
+                    <li>
+                        Report #{{ report.id }} —
+                        created {{ report.created_at }} —
+                        <a href="/api/v1/reports/{{ report.id }}/download" target="_blank">
+                            Download
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No PDF report yet for this scan.</p>
+        {% endif %}
+
+        <form
+            method="post"
+            action="/api/v1/reports/{{ scan.id }}/generate/html"
+            style="margin-top: 1rem;"
+        >
+            <button type="submit">Generate PDF Report</button>
+        </form>
+    </section>
+
+    <p>
+        <a href="/api/v1/scans/html">&larr; Back to scans list</a>
+    </p>
+</div>
+{% endblock %}
