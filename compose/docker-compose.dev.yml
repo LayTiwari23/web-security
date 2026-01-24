@@ -16,6 +16,7 @@ services:
       - ../alembic:/app/alembic
       - ../alembic.ini:/app/alembic.ini
       - ../src/app/static:/app/static
+      - websec_pdf_reports:/app/pdf_reports # ✅ Added shared volume for PDFs
     env_file:
       - .env
     environment:
@@ -36,6 +37,7 @@ services:
     build:
       context: ..
       dockerfile: docker/api.Dockerfile
+    user: root
     container_name: websec_worker
     command: >
       celery
@@ -46,16 +48,16 @@ services:
       - ../src:/app/src
       - ../alembic:/app/alembic
       - ../alembic.ini:/app/alembic.ini
+      - websec_pdf_reports:/app/pdf_reports # ✅ Added shared volume for PDFs
     env_file:
       - .env
     environment:
       APP_ENV: development
-      PYTHONPATH: .  # <--- ADD THIS LINE
+      PYTHONPATH: .
       DATABASE_URL: postgresql+psycopg2://websec_user:websec_pass@db:5432/websec_db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
-      
       BACKEND_CORS_ORIGINS: '["http://localhost", "http://localhost:8000", "http://localhost:3000"]'
     depends_on:
       - db
@@ -67,7 +69,6 @@ services:
       context: ..
       dockerfile: docker/api.Dockerfile
     container_name: websec_beat
-    # 👇 UPDATED COMMAND: Added -s /tmp/celerybeat-schedule
     command: >
       celery
       -A src.workers.celery_app.celery_app
@@ -98,8 +99,9 @@ services:
       dockerfile: docker/nginx.Dockerfile
     container_name: websec_nginx
     volumes:
-     - ../src/app/static:/app/static
-     - ../nginx/nginx.conf:/etc/nginx/conf.d/app.conf
+      - ../src/app/static:/app/static
+      - ../nginx/nginx.conf:/etc/nginx/conf.d/app.conf
+      - websec_pdf_reports:/app/pdf_reports # ✅ Optional: Let Nginx serve PDFs directly
     depends_on:
       - api
     ports:
@@ -128,3 +130,4 @@ services:
 
 volumes:
   websec_db_data:
+  websec_pdf_reports: # ✅ Defined the new volume here

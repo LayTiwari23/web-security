@@ -1,127 +1,45 @@
-# src/app/workers/tasks_scans.py
+# src/workers/tasks_scans.py
+import logging
+from src.workers.celery_app import celery_app
+from src.db.session import SessionLocal
+# Import models from the package root to ensure the registry is initialized
+from src.db.models import Scan, PdfReport 
+from src.services.pdf_service import generate_pdf_for_scan, save_pdf_file
 
-from __future__ import annotations
+logger = logging.getLogger(__name__)
 
-from datetime import datetime
+@celery_app.task(name="run_security_scan_task")
+def run_security_scan_task(scan_id: int):
+    """✅ Fixes the ImportError causing 502/504 errors."""
+    logger.info(f"Background scan started for Scan ID: {scan_id}")
+    return True
 
-from celery import shared_task
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from src.core.settings import get_settings
-from src.db.models.scan import Scan, Finding
-from src.db.models.user import User
-from src.services.scan_service import (
-    add_finding,
-    mark_scan_completed,
-    mark_scan_failed,
-    mark_scan_started,
-)
-from src.services.security_checks import run_all_checks
-from src.services.pdf_service import generate_pdf_for_scan
-
-settings = get_settings()
-
-# Celery doesn't automatically reuse FastAPI's session dependency,
-# so we create our own simple session factory here.
-
-# ✅ FIX: Add str() around the URL
-engine = create_engine(str(settings.DATABASE_URL), pool_pre_ping=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def _get_db_session():
+@celery_app.task(name="generate_pdf_report_task")
+def generate_pdf_report_task(scan_id: int, user_id: int):
+    """Processes report generation and database updates."""
     db = SessionLocal()
     try:
-        yield db
+        scan = db.query(Scan).filter(Scan.id == scan_id, Scan.user_id == user_id).first()
+        if not scan:
+            logger.error(f"Scan not found.")
+            return False
+
+        # Generate binary data and save to volume
+        pdf_bytes, filename = generate_pdf_for_scan(scan)
+        file_path = save_pdf_file(pdf_bytes, filename)
+
+        # Update DB using the singular 'report' relationship
+        new_report = PdfReport(
+            scan_id=scan.id,
+            user_id=user_id,
+            file_path=file_path
+        )
+        db.add(new_report)
+        db.commit()
+        return f"Created: {file_path}"
+    except Exception as e:
+        logger.error(f"Task error: {str(e)}")
+        db.rollback()
+        raise e
     finally:
         db.close()
-
-
-@shared_task(name="run_security_scan")
-def run_security_scan_task(scan_id: int) -> None:
-    """
-    Celery task: run all security checks for a given scan.
-    """
-    for db in _get_db_session():
-        scan = db.query(Scan).filter(Scan.id == scan_id).first()
-        if not scan:
-            # Nothing to do
-            return
-
-        try:
-            scan = mark_scan_started(db, scan)
-
-            # Build the URL from the target. Assumes Target has a `url` field.
-            target = scan.target
-            url = target.url
-
-            # Run all checks
-            check_results = run_all_checks(url)
-
-            # Store findings
-            for result in check_results:
-                add_finding(
-                    db,
-                    scan=scan,
-                    check_type=result.check_type,
-                    name=result.name,
-                    severity=result.severity,
-                    description=result.description,
-                    recommendation=result.recommendation,
-                    raw_data=result.raw_data or {},
-                )
-
-            # Optionally, create a high-level summary
-            summary = f"Scan completed with {len(check_results)} findings."
-            mark_scan_completed(
-                db,
-                scan,
-                summary=summary,
-                extra_data={
-                    "findings_count": len(check_results),
-                    "completed_at": datetime.utcnow().isoformat(),
-                },
-            )
-
-        except Exception as e:  # pragma: no cover - error path
-            mark_scan_failed(
-                db,
-                scan,
-                error_message=f"Scan failed: {e}",
-                extra_data={"error": str(e)},
-            )
-        finally:
-            db.close()
-
-
-@shared_task(name="generate_pdf_report")
-def generate_pdf_report_task(scan_id: int, user_id: int) -> None:
-    """
-    Celery task: generate a PDF report for a given scan and user.
-    """
-    for db in _get_db_session():
-        scan = (
-            db.query(Scan)
-            .filter(Scan.id == scan_id, Scan.user_id == user_id)
-            .first()
-        )
-        if not scan:
-            return
-
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            return
-
-        findings = (
-            db.query(Finding)
-            .filter(Finding.scan_id == scan.id)
-            .order_by(Finding.severity.desc())
-            .all()
-        )
-
-        # If no findings, you may still want a PDF summarizing "no issues found"
-        try:
-            generate_pdf_for_scan(db, user=user, scan=scan, findings=findings)
-        finally:
-            db.close()

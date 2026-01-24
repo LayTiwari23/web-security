@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import List
 
@@ -23,11 +24,9 @@ from src.workers.tasks_scans import generate_pdf_report_task
 router = APIRouter()
 settings = get_settings()
 
-
 # -------------------------------------------------
-# Pydantic schemas
+# Pydantic schemas (Updated for V2)
 # -------------------------------------------------
-
 
 class ReportRead(BaseModel):
     id: int
@@ -35,44 +34,12 @@ class ReportRead(BaseModel):
     file_path: str
 
     class Config:
-        orm_mode = True
-
+        # Fixed the V2 warning from your logs
+        from_attributes = True
 
 # -------------------------------------------------
-# JSON API endpoints
+# Core Logic: Download & Generate
 # -------------------------------------------------
-
-
-@router.get("/", response_model=List[ReportRead])
-def list_reports(
-    db: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    List all PDF reports for the current user.
-    """
-    reports = list_reports_for_user(db, user_id=current_user.id)
-    return reports
-
-
-@router.post(
-    "/generate/{scan_id}",
-    status_code=status.HTTP_202_ACCEPTED,
-)
-def generate_report(
-    scan_id: int,
-    db: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Enqueue task to generate a PDF report for a scan.
-    """
-    # Ownership checks will be inside the task/service layer as well,
-    # but we can do a quick pre-check here if desired.
-    # For now we just enqueue; task will validate.
-    generate_pdf_report_task.delay(scan_id=scan_id, user_id=current_user.id)
-    return {"detail": "Report generation requested"}
-
 
 @router.get("/{report_id}/download")
 def download_report(
@@ -81,61 +48,37 @@ def download_report(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Download a PDF report if it belongs to the current user.
+    Serves the PDF file from the Docker volume /app/pdf_reports.
     """
-    report = (
-        db.query(PdfReport)
-        .filter(
-            PdfReport.id == report_id,
-            PdfReport.user_id == current_user.id,
-        )
-        .first()
-    )
+    report = db.query(PdfReport).filter(
+        PdfReport.id == report_id, 
+        PdfReport.user_id == current_user.id
+    ).first()
+
     if not report:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Report not found",
-        )
+        raise HTTPException(status_code=404, detail="Report record not found")
 
     file_path = Path(report.file_path)
+    
+    # Ensure absolute path matching the volume mount
     if not file_path.is_absolute():
-        file_path = Path(settings.PDF_OUTPUT_DIR) / file_path
+        file_path = Path("/app/pdf_reports") / file_path
 
     if not file_path.exists():
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Report file missing on server",
+            status_code=404, 
+            detail=f"PDF file not found at {file_path}. Is the worker running?"
         )
 
     return FileResponse(
         path=str(file_path),
         media_type="application/pdf",
-        filename=file_path.name,
+        filename=file_path.name
     )
 
-
-@router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_report(
-    report_id: int,
-    db: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Delete a PDF report and its file if it belongs to the current user.
-    """
-    success = delete_report_for_user(db, report_id=report_id, user_id=current_user.id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Report not found",
-        )
-    return None
-
-
 # -------------------------------------------------
-# Server-rendered HTML endpoints
+# HTML Interface Routes (Fixes the 404)
 # -------------------------------------------------
-
 
 @router.get("/html", response_class=HTMLResponse)
 async def list_reports_page(
@@ -144,7 +87,7 @@ async def list_reports_page(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Render a page listing all reports for the current user.
+    This is the page your API tried to redirect to.
     """
     templates = request.app.state.templates
     reports = list_reports_for_user(db, user_id=current_user.id)
@@ -157,31 +100,19 @@ async def list_reports_page(
         },
     )
 
-
-@router.post("/{scan_id}/generate/html", response_class=HTMLResponse)
+@router.post("/{scan_id}/generate/html")
 async def generate_report_html(
     scan_id: int,
-    request: Request,
     current_user: User = Depends(get_current_user),
 ):
     """
-    Enqueue report generation from HTML UI, then redirect to reports list.
+    Trigger generation and redirect to the reports list.
     """
+    # Enqueue the background task
     generate_pdf_report_task.delay(scan_id=scan_id, user_id=current_user.id)
+    
+    # Redirect to the route we just defined above
     return RedirectResponse(
-        url="/api/v1/reports/html",
-        status_code=status.HTTP_302_FOUND,
+        url="/api/v1/reports/html", 
+        status_code=status.HTTP_302_FOUND
     )
-
-
-@router.get("/{report_id}/download/html")
-async def download_report_html(
-    report_id: int,
-    request: Request,
-    db: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    For HTML flow, reuse the same file download behavior.
-    """
-    return download_report(report_id=report_id, db=db, current_user=current_user)

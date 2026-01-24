@@ -1,14 +1,16 @@
-# src/app/api/v1/routes_scans.py
-
 from __future__ import annotations
+from datetime import datetime
+import os
+from pathlib import Path
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, status, Form  # Added Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Form
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse # ✅ Added FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_current_user, get_db_session
 from src.db.models.scan import Scan, Finding
+from src.db.models.pdf_report import PdfReport # ✅ Added PdfReport model
 from src.db.models.target import Target
 from src.db.models.user import User
 from src.services.scan_service import (
@@ -40,8 +42,8 @@ class ScanRead(BaseModel):
     id: int
     status: str
     target_id: int
-    started_at: Optional[str] = None
-    finished_at: Optional[str] = None
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
     summary: Optional[str] = None
 
     class Config:
@@ -51,7 +53,7 @@ class ScanDetail(ScanRead):
     findings: List[FindingRead] = []
 
 # -------------------------------------------------
-# Server-rendered HTML endpoints (MUST BE FIRST)
+# Server-rendered HTML endpoints
 # -------------------------------------------------
 
 @router.get("/html", response_class=HTMLResponse)
@@ -70,7 +72,7 @@ async def list_scans_page(
 @router.post("/start/html", response_class=HTMLResponse)
 async def start_scan_html(
     request: Request,
-    target_id: int = Form(...),  # Fixed: Reads from the 'Start Scan' button form
+    target_id: int = Form(...),
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -83,7 +85,6 @@ async def start_scan_html(
         raise HTTPException(status_code=404, detail="Target not found")
 
     scan = create_scan_for_target(db, user=current_user, target=target)
-    # This sends the task to the ready worker
     run_security_scan_task.delay(scan_id=scan.id)
 
     return RedirectResponse(
@@ -104,12 +105,47 @@ async def scan_detail_page(
         raise HTTPException(status_code=404, detail="Scan not found")
 
     findings = db.query(Finding).filter(Finding.scan_id == scan.id).order_by(Finding.severity.desc()).all()
-    pdf_reports = scan.pdf_reports if hasattr(scan, "pdf_reports") else []
+    
+    # ✅ FIX: Using singular 'report' relationship from our stabilized model
+    report = scan.report if hasattr(scan, "report") else None
 
     return templates.TemplateResponse(
         "scans/detail.html",
-        {"request": request, "scan": scan, "findings": findings, "pdf_reports": pdf_reports, "user": current_user},
+        {"request": request, "scan": scan, "findings": findings, "report": report, "user": current_user},
     )
+
+# -------------------------------------------------
+# PDF Download Endpoint
+# -------------------------------------------------
+
+@router.get("/{scan_id}/report/download", response_class=FileResponse)
+async def download_report(
+    scan_id: int,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Streams the PDF from the named volume to the browser.
+    """
+    report = db.query(PdfReport).filter(
+        PdfReport.scan_id == scan_id, 
+        PdfReport.user_id == current_user.id
+    ).first()
+
+    if not report:
+        raise HTTPException(status_code=404, detail="No PDF report generated for this scan.")
+
+    file_path = Path(report.file_path)
+
+    # ✅ Verification: Ensure file is still in the websec_pdf_reports volume
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="The report file was not found in storage.")
+
+    return FileResponse(
+    path=file_path,
+    media_type='application/pdf',
+    filename=f"Report_Scan_{scan_id}.pdf" # Forces the browser to treat it as a download
+)
 
 # -------------------------------------------------
 # JSON API endpoints

@@ -1,4 +1,3 @@
-<!-- src/app/templates/scans/list.html -->
 {% extends "base.html" %}
 
 {% block title %}Scans - Web Security Compliance Checker{% endblock %}
@@ -19,7 +18,7 @@
                         <th>Started</th>
                         <th>Finished</th>
                         <th>Summary</th>
-                        <th>Actions</th>
+                        <th style="min-width: 200px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -33,24 +32,39 @@
                                 {{ scan.target_id }}
                             {% endif %}
                         </td>
-                        <td>{{ scan.status }}</td>
+                        <td>
+                            <span class="status-badge status-{{ scan.status }}">
+                                {{ scan.status }}
+                            </span>
+                        </td>
                         <td>{{ scan.created_at }}</td>
                         <td>{{ scan.started_at or "-" }}</td>
                         <td>{{ scan.finished_at or "-" }}</td>
                         <td>{{ scan.summary or "-" }}</td>
                         <td>
-                            <a href="/api/v1/scans/{{ scan.id }}/html" class="btn-secondary">
-                                View
-                            </a>
-                            <form
-                                method="post"
-                                action="/api/v1/reports/{{ scan.id }}/generate/html"
-                                style="display:inline;"
-                            >
-                                <button type="submit" class="btn-secondary">
-                                    Generate Report
-                                </button>
-                            </form>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <a href="/api/v1/scans/{{ scan.id }}/html" class="btn-secondary">
+                                    View
+                                </a>
+
+                                {% if scan.report %}
+                                    <a href="/api/v1/reports/{{ scan.report.id }}/download" 
+                                       class="btn-secondary" 
+                                       style="background-color: #28a745; color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-weight: bold;">
+                                        Download PDF
+                                    </a>
+                                {% else %}
+                                    <form
+                                        method="post"
+                                        action="/api/v1/reports/{{ scan.id }}/generate/html"
+                                        style="display:inline;"
+                                    >
+                                        <button type="submit" class="btn-secondary">
+                                            Generate Report
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                 {% endfor %}

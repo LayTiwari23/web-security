@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# Docker & Storage
+pdf_reports/
+websec_db_data/
+websec_pdf_reports/
+
+# IDEs
+.vscode/
+.idea/

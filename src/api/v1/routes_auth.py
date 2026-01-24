@@ -115,7 +115,7 @@ async def login_submit_html(
     # --- FIX APPLIED HERE ---
     response.set_cookie(
         key="access_token",
-        value=token,
+        value=f"Bearer {token}",
         httponly=True,
         secure=False,    # MUST be False for localhost
         samesite="lax",  # Keeps cookie during redirect
@@ -167,7 +167,7 @@ async def register_submit_html(
     # --- FIX APPLIED HERE ---
     response.set_cookie(
         key="access_token",
-        value=token,
+        value=f"Bearer {token}",
         httponly=True,
         secure=False,    # MUST be False for localhost
         samesite="lax",  # Keeps cookie during redirect
