@@ -1,5 +1,3 @@
-# src/app/api/v1/routes_reports.py
-
 from __future__ import annotations
 
 import os
@@ -25,7 +23,7 @@ router = APIRouter()
 settings = get_settings()
 
 # -------------------------------------------------
-# Pydantic schemas (Updated for V2)
+# Pydantic schemas
 # -------------------------------------------------
 
 class ReportRead(BaseModel):
@@ -34,7 +32,6 @@ class ReportRead(BaseModel):
     file_path: str
 
     class Config:
-        # Fixed the V2 warning from your logs
         from_attributes = True
 
 # -------------------------------------------------
@@ -58,16 +55,14 @@ def download_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report record not found")
 
-    file_path = Path(report.file_path)
-    
-    # Ensure absolute path matching the volume mount
-    if not file_path.is_absolute():
-        file_path = Path("/app/pdf_reports") / file_path
+    storage_base = Path("/app/pdf_reports")
+    filename = Path(report.file_path).name 
+    file_path = storage_base / filename
 
     if not file_path.exists():
         raise HTTPException(
             status_code=404, 
-            detail=f"PDF file not found at {file_path}. Is the worker running?"
+            detail=f"PDF file not found. Ensure worker and API share the same volume."
         )
 
     return FileResponse(
@@ -77,7 +72,7 @@ def download_report(
     )
 
 # -------------------------------------------------
-# HTML Interface Routes (Fixes the 404)
+# HTML Interface Routes
 # -------------------------------------------------
 
 @router.get("/html", response_class=HTMLResponse)
@@ -86,9 +81,6 @@ async def list_reports_page(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    This is the page your API tried to redirect to.
-    """
     templates = request.app.state.templates
     reports = list_reports_for_user(db, user_id=current_user.id)
     return templates.TemplateResponse(
@@ -105,13 +97,48 @@ async def generate_report_html(
     scan_id: int,
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Trigger generation and redirect to the reports list.
-    """
-    # Enqueue the background task
     generate_pdf_report_task.delay(scan_id=scan_id, user_id=current_user.id)
+    return RedirectResponse(
+        url="/api/v1/reports/html", 
+        status_code=status.HTTP_302_FOUND
+    )
+
+@router.post("/{report_id}/delete/html")
+async def delete_report_html(
+    report_id: int,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    success = delete_report_for_user(db, report_id=report_id, user_id=current_user.id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Report deletion failed")
+
+    return RedirectResponse(
+        url="/api/v1/reports/html", 
+        status_code=status.HTTP_302_FOUND
+    )
+
+# -------------------------------------------------
+# New Logic: Bulk Cleanup
+# -------------------------------------------------
+
+@router.post("/delete-all/html")
+async def delete_all_reports_html(
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Purges all reports and associated physical files for the current user.
+    Uses ORM-enabled deletion to ensure cleanup logic is triggered.
+    """
+    reports = db.query(PdfReport).filter(PdfReport.user_id == current_user.id).all()
     
-    # Redirect to the route we just defined above
+    for report in reports:
+        # Service handles both DB record and physical file cleanup
+        delete_report_for_user(db, report_id=report.id, user_id=current_user.id)
+    
+    db.commit()
+    
     return RedirectResponse(
         url="/api/v1/reports/html", 
         status_code=status.HTTP_302_FOUND

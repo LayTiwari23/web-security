@@ -1,4 +1,3 @@
-<!-- src/app/templates/reports/list.html -->
 {% extends "base.html" %}
 
 {% block title %}Reports - Web Security Compliance Checker{% endblock %}
@@ -14,8 +13,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Scan ID</th>
-                        <th>File Path</th>
-                        <th>Created</th>
+                        <th>File Name</th> <th>Created</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -24,40 +22,42 @@
                     <tr>
                         <td>{{ report.id }}</td>
                         <td>{{ report.scan_id }}</td>
-                        <td>{{ report.file_path }}</td>
-                        <td>{{ report.created_at }}</td>
+                        <td><code>{{ report.file_path }}</code></td>
+                        <td>{{ report.created_at.strftime('%Y-%m-%d %H:%M') if report.created_at else 'N/A' }}</td>
                         <td>
-                            <a
-                                href="/api/v1/reports/{{ report.id }}/download"
-                                class="btn-secondary"
-                                target="_blank"
-                            >
-                                Download
-                            </a>
+                            <div class="action-buttons" style="display: flex; gap: 10px;">
+                                <a
+                                    href="/api/v1/reports/{{ report.id }}/download"
+                                    class="btn-secondary"
+                                    target="_blank"
+                                    style="text-decoration: none; padding: 5px 10px; border-radius: 4px; background-color: #6c757d; color: white;"
+                                >
+                                    Download
+                                </a>
 
-                            <!-- Simple POST that you can wire in backend to call DELETE -->
-                            <form
-                                method="post"
-                                action="/api/v1/reports/{{ report.id }}"
-                                style="display:inline;"
-                                onsubmit="return confirm('Delete this report?');"
-                            >
-                                <!-- If you add a small FastAPI helper route to accept POST and call delete,
-                                     you won't need JS here. Otherwise, handle DELETE via JS/fetch. -->
-                                <button type="submit" class="btn-danger">
-                                    Delete
-                                </button>
-                            </form>
+                                <form
+                                    method="post"
+                                    action="/api/v1/reports/{{ report.id }}/delete/html"
+                                    style="display:inline;"
+                                    onsubmit="return confirm('Delete this report and its physical PDF file?');"
+                                >
+                                    <button type="submit" class="btn-danger" style="padding: 5px 10px; border-radius: 4px; background-color: #dc3545; color: white; border: none; cursor: pointer;">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 {% endfor %}
                 </tbody>
             </table>
         {% else %}
-            <p>
-                You have no reports yet.
-                Generate one from a <a href="/api/v1/scans/html">scan</a>.
-            </p>
+            <div class="empty-state">
+                <p>
+                    You have no reports yet.
+                    Generate one from the <a href="/api/v1/scans/html">Scans Dashboard</a>.
+                </p>
+            </div>
         {% endif %}
     </section>
 </div>

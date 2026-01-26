@@ -1,7 +1,7 @@
 # src/app/main.py
 
 from __future__ import annotations
-
+import os
 from pathlib import Path
 from typing import Any, Dict
 
@@ -9,26 +9,19 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 
-# ✅ UPDATED IMPORTS (Absolute Paths)
 from src.app.config import get_settings
 from src.core.logging_config import setup_logging
 from src.core.exceptions import register_exception_handlers
 from src.db.session import get_db
 
-# ✅ UPDATED API IMPORTS
-# Assumes 'api' folder is inside 'src/app'. 
-# If 'api' is directly in 'src', change this to 'from src.api.v1 import ...'
 from src.api.v1 import (
     routes_auth,
     routes_targets,
     routes_scans,
     routes_reports,
 )
-
-# -------------------------------------------------------------------
-# App factory
-# -------------------------------------------------------------------
 
 def create_app() -> FastAPI:
     settings = get_settings()
@@ -41,64 +34,73 @@ def create_app() -> FastAPI:
         debug=settings.DEBUG,
     )
 
-    # Mount static files
-    # We use resolve().parents[1] to go up two levels (from app/main.py -> src/app -> src) 
-    # if your static folder is in src/static. 
-    # If static is inside src/app/static, keeping .parent is fine.
-    # Let's stick to your current logic but ensure folder exists.
-    static_dir = Path(__file__).resolve().parent / "static"
+    # -------------------------------------------------------------------
+    # ✅ PROTOCOL MIDDLEWARE (Fixes Mixed Content for ngrok)
+    # -------------------------------------------------------------------
+    @app.middleware("http")
+    async def force_https_behind_proxy(request: Request, call_next):
+        # Detect the ngrok HTTPS forwarding header
+        if request.headers.get("x-forwarded-proto") == "https":
+            # Force all generated URLs (CSS/JS) to use 'https'
+            request.scope["scheme"] = "https"
+        return await call_next(request)
+
+    # Enable CORS for frontend-backend communication
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.BACKEND_CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # -------------------------------------------------------------------
+    # ✅ ROBUST PATH CONFIGURATION (Absolute Paths)
+    # -------------------------------------------------------------------
     
-    # Check if directory exists to avoid errors
-    if not static_dir.exists():
-        static_dir.mkdir(parents=True, exist_ok=True)
-        
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    # Absolute path to this file (src/app/main.py)
+    current_file_path = os.path.abspath(__file__)
+    # Path to 'src' directory
+    src_dir = os.path.dirname(os.path.dirname(current_file_path))
+    # Path to 'src/app/templates'
+    templates_dir = os.path.join(src_dir, "app", "templates")
+    # Path to 'src/static'
+    static_path = os.path.join(src_dir, "static")
 
-    # Templates
-    templates_dir = Path(__file__).resolve().parent / "templates"
-    templates = Jinja2Templates(directory=str(templates_dir))
+    # Mount static files from src/static
+    if os.path.exists(static_path):
+        app.mount("/static", StaticFiles(directory=static_path), name="static")
+    else:
+        print(f"CRITICAL: Static directory not found at {static_path}")
 
-    # Store templates in app.state for reuse
+    # Use absolute path for templates
+    templates = Jinja2Templates(directory=templates_dir)
     app.state.templates = templates
 
-    # Routers (API)
-    app.include_router(
-        routes_auth.router,
-        prefix="/api/v1/auth",
-        tags=["auth"],
-    )
-    app.include_router(
-        routes_targets.router,
-        prefix="/api/v1/targets",
-        tags=["targets"],
-    )
-    app.include_router(
-        routes_scans.router,
-        prefix="/api/v1/scans",
-        tags=["scans"],
-    )
-    app.include_router(
-        routes_reports.router,
-        prefix="/api/v1/reports",
-        tags=["reports"],
-    )
+    # -------------------------------------------------------------------
+    # ROUTERS
+    # -------------------------------------------------------------------
+    app.include_router(routes_auth.router, prefix="/api/v1/auth", tags=["auth"])
+    app.include_router(routes_targets.router, prefix="/api/v1/targets", tags=["targets"])
+    app.include_router(routes_scans.router, prefix="/api/v1/scans", tags=["scans"])
+    app.include_router(routes_reports.router, prefix="/api/v1/reports", tags=["reports"])
 
-    # Exception handlers
     register_exception_handlers(app)
 
     # -------------------------------------------------------------------
-    # Simple server-rendered pages
+    # UI ROUTES (Frontend)
     # -------------------------------------------------------------------
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> Any:
-        """Landing page or redirect to dashboard/login."""
         return templates.TemplateResponse("dashboard.html", {"request": request})
 
-    # Example dependency usage on a page if you need DB access:
+    @app.get("/login", response_class=HTMLResponse)
+    async def login_page(request: Request) -> Any:
+        return templates.TemplateResponse("auth/login.html", {"request": request})
+
     @app.get("/health", tags=["internal"])
     async def healthcheck(db=Depends(get_db)) -> Dict[str, str]:
-        # optionally do a simple DB query here
         return {"status": "ok"}
 
     return app

@@ -1,14 +1,13 @@
-# src/db/base.py
 from typing import Any
-from sqlalchemy.ext.declarative import as_declarative, declared_attr
+from sqlalchemy.orm import as_declarative, declared_attr
 
 @as_declarative()
 class Base:
+    """Base class for all models to enable metadata and automatic tablenames."""
     id: Any
     __name__: str
 
-    # This generates the table name automatically from the class name
-    # e.g., 'User' class becomes 'user' table
     @declared_attr
     def __tablename__(cls) -> str:
+        """Automatically generates table names from class names."""
         return cls.__name__.lower()

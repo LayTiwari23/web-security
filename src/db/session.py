@@ -1,20 +1,17 @@
-# src/db/session.py
-
 from __future__ import annotations
 from typing import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from src.core.settings import settings
 
-from src.core.settings import get_settings
-
-settings = get_settings()
-
-# --------------------------------------------------------------------------
-# ✅ THE FIX: 
-# 1. We use 'settings.DATABASE_URL' (because we know it definitely exists).
-# 2. We wrap it in 'str()' to turn the fancy URL object into plain text.
-# --------------------------------------------------------------------------
-engine = create_engine(str(settings.DATABASE_URL), pool_pre_ping=True)
+# ✅ THE FIX: Production-grade connection pooling
+engine = create_engine(
+    str(settings.DATABASE_URL),
+    pool_size=10,        # Number of permanent connections
+    max_overflow=20,     # Extra connections during high traffic
+    pool_pre_ping=True,  # Automatically tests/recovers connections
+    pool_recycle=3600    # Resets connections every hour to prevent timeouts
+)
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -23,10 +20,7 @@ SessionLocal = sessionmaker(
 )
 
 def get_db() -> Generator[Session, None, None]:
-    """
-    FastAPI dependency that provides a SQLAlchemy Session.
-    Closes the session after the request is done.
-    """
+    """Provides a thread-safe database session."""
     db: Session = SessionLocal()
     try:
         yield db

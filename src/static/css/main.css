@@ -294,3 +294,70 @@ a {
 a:hover {
     color: #1d4ed8;
 }
+.dashboard-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.card {
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    padding: 1.25rem;
+    background-color: #ffffff;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+/* System Cleanup & Danger Styling */
+.danger-card {
+    border: 1px solid #fecaca !important;
+    background-color: #fef2f2 !important; /* Light red warning background */
+}
+
+.danger-card h2 {
+    color: #991b1b; /* Dark red for heading */
+}
+
+.btn-danger {
+    background-color: #dc2626;
+    color: #ffffff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-weight: 600;
+    width: 100%;
+    text-align: center;
+    transition: background-color 0.2s;
+}
+
+.btn-danger:hover {
+    background-color: #b91c1c;
+    box-shadow: 0 2px 4px rgba(185, 28, 28, 0.2);
+}
+
+/* Metadata Styling for Report Headers */
+.report-metadata {
+    font-size: 0.85rem;
+    color: #4b5563;
+    background: #f3f4f6;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 1.25rem;
+    border-left: 4px solid #1e293b;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .dashboard-actions {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,5 +1,4 @@
-version: "3.9"
-
+# Note: 'version' is removed as it is obsolete in modern Docker Compose
 services:
   api:
     build:
@@ -16,7 +15,8 @@ services:
       - ../alembic:/app/alembic
       - ../alembic.ini:/app/alembic.ini
       - ../src/app/static:/app/static
-      - websec_pdf_reports:/app/pdf_reports # ✅ Added shared volume for PDFs
+      # ✅ Bind mount ensures PDFs sync directly to your Windows folder
+      - ../pdf_reports:/app/pdf_reports 
     env_file:
       - .env
     environment:
@@ -48,7 +48,8 @@ services:
       - ../src:/app/src
       - ../alembic:/app/alembic
       - ../alembic.ini:/app/alembic.ini
-      - websec_pdf_reports:/app/pdf_reports # ✅ Added shared volume for PDFs
+      # ✅ Shared bind mount so the worker saves files where the API can see them
+      - ../pdf_reports:/app/pdf_reports
     env_file:
       - .env
     environment:
@@ -101,7 +102,8 @@ services:
     volumes:
       - ../src/app/static:/app/static
       - ../nginx/nginx.conf:/etc/nginx/conf.d/app.conf
-      - websec_pdf_reports:/app/pdf_reports # ✅ Optional: Let Nginx serve PDFs directly
+      # ✅ Nginx can now serve the PDFs from the shared Windows folder
+      - ../pdf_reports:/app/pdf_reports
     depends_on:
       - api
     ports:
@@ -130,4 +132,4 @@ services:
 
 volumes:
   websec_db_data:
-  websec_pdf_reports: # ✅ Defined the new volume here
+  # Named volume 'websec_pdf_reports' is removed in favor of direct bind mounts

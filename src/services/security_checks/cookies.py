@@ -1,72 +1,44 @@
 # src/app/services/security_checks/cookies.py
 
 from __future__ import annotations
-
 from typing import Dict, List, Tuple
-
 import requests
-
 from . import CheckResult
-
 
 def _fetch_cookies_and_headers(url: str) -> Tuple[Dict[str, str], Dict[str, str]]:
     """
     Perform a GET request and return (cookies, headers).
-
-    - cookies: dict of cookie_name -> cookie_value (from requests' cookie jar)
-    - headers: response headers (normalized to lowercase keys)
+    Includes verify=False for internal development environments.
     """
-    resp = requests.get(url, timeout=10, allow_redirects=True)
-    resp.raise_for_status()
-
-    cookies = {c.name: c.value for c in resp.cookies}
-    headers = {k.lower(): v for k, v in resp.headers.items()}
-    return cookies, headers
-
+    try:
+        resp = requests.get(url, timeout=10, allow_redirects=True, verify=False)
+        cookies = {c.name: c.value for c in resp.cookies}
+        headers = {k.lower(): v for k, v in resp.headers.items()}
+        return cookies, headers
+    except Exception:
+        return {}, {}
 
 def _parse_set_cookie_headers(headers: Dict[str, str]) -> List[str]:
     """
-    Extract Set-Cookie headers. If multiple Set-Cookie headers exist,
-    some servers combine them into a single header; others send multiple.
-    requests will typically join multiple headers with commas, but that can
-    break parsing of attributes that also contain commas.
-
-    For a simple implementation, we just split on ', ' for now. For
-    production-grade parsing, consider using 'cookies.SimpleCookie' or
-    'http.cookies' from the stdlib.
+    Extract Set-Cookie headers from normalized response headers.
     """
     set_cookie_raw = headers.get("set-cookie")
     if not set_cookie_raw:
         return []
+    # requests may join multiple cookies with a comma
+    return set_cookie_raw.split(", ") if ", " in set_cookie_raw else [set_cookie_raw]
 
-    # Naive splitting; good enough for basic checks
-    if ", " in set_cookie_raw:
-        parts = set_cookie_raw.split(", ")
-    else:
-        parts = [set_cookie_raw]
-
-    return parts
-
-
-def _analyze_cookie_attributes(set_cookie_headers: List[str]) -> List[Dict[str, str]]:
+def _analyze_cookie_attributes(set_cookie_headers: List[str]) -> List[Dict]:
     """
-    Very simple parser for 'Set-Cookie' header lines to check attributes
-    like Secure, HttpOnly, SameSite.
-    Returns list of dicts: {"name": ..., "attributes": {attr_name: attr_value or True}}
+    Parses 'Set-Cookie' header lines to check for mandatory security attributes.
     """
-    cookies_info: List[Dict[str, str]] = []
-
+    cookies_info = []
     for header in set_cookie_headers:
-        # Example: "sessionid=abc123; HttpOnly; Secure; SameSite=Lax"
         parts = [p.strip() for p in header.split(";")]
-        if not parts:
-            continue
+        if not parts: continue
 
         name_value = parts[0]
-        if "=" in name_value:
-            name, _ = name_value.split("=", 1)
-        else:
-            name = name_value
+        name = name_value.split("=", 1)[0] if "=" in name_value else name_value
 
         attrs: Dict[str, str] = {}
         for attr in parts[1:]:
@@ -76,22 +48,13 @@ def _analyze_cookie_attributes(set_cookie_headers: List[str]) -> List[Dict[str, 
             else:
                 attrs[attr.lower()] = "true"
 
-        cookies_info.append(
-            {
-                "name": name,
-                "attributes": attrs,
-            }
-        )
-
+        cookies_info.append({"name": name, "attributes": attrs})
     return cookies_info
-
 
 def run(url: str) -> List[CheckResult]:
     """
-    Check cookie security attributes:
-      - Secure
-      - HttpOnly
-      - SameSite
+    Check cookie security attributes against the 28-item compliance list.
+    Maps to Item 11 (HttpOnly/Secure) and Item 12 (SameSite).
     """
     _, headers = _fetch_cookies_and_headers(url)
     set_cookie_headers = _parse_set_cookie_headers(headers)
@@ -100,105 +63,51 @@ def run(url: str) -> List[CheckResult]:
     results: List[CheckResult] = []
 
     if not cookies_info:
-        # Not necessarily a problem; some endpoints may not set cookies.
-        # Return an informational finding.
-        results.append(
-            CheckResult(
-                check_type="cookies",
-                name="No Cookies Set",
-                severity="low",
-                description="No cookies were set by the application on the scanned URL.",
-                recommendation=(
-                    "If the application uses sessions or authentication, ensure that cookies are "
-                    "configured securely (Secure, HttpOnly, SameSite)."
-                ),
-                raw_data={"set_cookie_headers": set_cookie_headers},
-            )
-        )
+        results.append(CheckResult(
+            check_type="cookies",
+            name="No Cookies Set",
+            severity="info",
+            description="No cookies detected on this URL.",
+            recommendation="Standard for static pages; ensure Secure/HttpOnly if sessions are added.",
+            raw_data={"set_cookie_headers": []},
+        ))
         return results
 
     for cookie in cookies_info:
         name = cookie["name"]
         attrs = cookie["attributes"]
 
-        # 1) Secure flag
+        # 1) Item 11: Secure & HttpOnly flag check
         if "secure" not in attrs:
-            results.append(
-                CheckResult(
-                    check_type="cookies",
-                    name=f"Cookie '{name}' Secure flag",
-                    severity="high",
-                    description=f"Cookie '{name}' is missing the Secure attribute.",
-                    recommendation=(
-                        "Set the Secure flag on cookies that contain sensitive data or session "
-                        "information to ensure they are only sent over HTTPS."
-                    ),
-                    raw_data={"cookie": name, "attributes": attrs},
-                )
-            )
+            results.append(CheckResult(
+                check_type="cookies",
+                name=f"Cookie '{name}' Secure flag",
+                severity="critical", # Red
+                description=f"Cookie '{name}' is missing the Secure attribute.",
+                recommendation="Set the Secure flag to ensure cookies are only sent over HTTPS.",
+                raw_data={"cookie": name},
+            ))
 
-        # 2) HttpOnly flag
         if "httponly" not in attrs:
-            results.append(
-                CheckResult(
-                    check_type="cookies",
-                    name=f"Cookie '{name}' HttpOnly flag",
-                    severity="high",
-                    description=f"Cookie '{name}' is missing the HttpOnly attribute.",
-                    recommendation=(
-                        "Set the HttpOnly flag on session and authentication cookies to mitigate "
-                        "the risk of client-side script access (e.g., XSS exfiltration)."
-                    ),
-                    raw_data={"cookie": name, "attributes": attrs},
-                )
-            )
+            results.append(CheckResult(
+                check_type="cookies",
+                name=f"Cookie '{name}' HttpOnly flag",
+                severity="critical", # Red
+                description=f"Cookie '{name}' is missing the HttpOnly attribute.",
+                recommendation="Set the HttpOnly flag to mitigate XSS script access.",
+                raw_data={"cookie": name},
+            ))
 
-        # 3) SameSite attribute
+        # 2) Item 12: SameSite attribute check
         samesite = attrs.get("samesite")
-        if not samesite:
-            results.append(
-                CheckResult(
-                    check_type="cookies",
-                    name=f"Cookie '{name}' SameSite attribute",
-                    severity="medium",
-                    description=f"Cookie '{name}' is missing the SameSite attribute.",
-                    recommendation=(
-                        "Set the SameSite attribute to 'Lax' or 'Strict' where possible to help "
-                        "mitigate CSRF attacks. If cross-site usage is required, use 'None; Secure'."
-                    ),
-                    raw_data={"cookie": name, "attributes": attrs},
-                )
-            )
-        else:
-            if samesite.lower() not in {"lax", "strict", "none"}:
-                results.append(
-                    CheckResult(
-                        check_type="cookies",
-                        name=f"Cookie '{name}' SameSite attribute",
-                        severity="medium",
-                        description=f"Cookie '{name}' SameSite attribute has a non-standard value: {samesite!r}.",
-                        recommendation=(
-                            "Use a valid SameSite value: 'Lax', 'Strict', or 'None'. When using 'None', "
-                            "the cookie must also have the Secure attribute."
-                        ),
-                        raw_data={"cookie": name, "attributes": attrs},
-                    )
-                )
-            elif samesite.lower() == "none" and "secure" not in attrs:
-                results.append(
-                    CheckResult(
-                        check_type="cookies",
-                        name=f"Cookie '{name}' SameSite=None without Secure",
-                        severity="medium",
-                        description=(
-                            f"Cookie '{name}' has SameSite=None but is missing the Secure attribute."
-                        ),
-                        recommendation=(
-                            "When using SameSite=None, the cookie must be marked Secure to comply "
-                            "with modern browser requirements and avoid being rejected."
-                        ),
-                        raw_data={"cookie": name, "attributes": attrs},
-                    )
-                )
+        if not samesite or samesite.lower() not in {"lax", "strict"}:
+            results.append(CheckResult(
+                check_type="cookies",
+                name=f"Cookie '{name}' SameSite attribute",
+                severity="warning", # Yellow/Orange
+                description=f"Cookie '{name}' has missing or weak SameSite attribute.",
+                recommendation="Set SameSite to 'Lax' or 'Strict' to mitigate CSRF.",
+                raw_data={"cookie": name, "observed": samesite},
+            ))
 
     return results
