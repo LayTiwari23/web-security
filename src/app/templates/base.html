@@ -1,76 +1,126 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Web Security Compliance Checker{% endblock %}</title>
-    
-    <link rel="stylesheet" href="/static/css/main.css">
-    
-    {% block head_extra %}{% endblock %}
-</head>
-<body>
-<header>
-    <nav class="navbar">
-        <div class="navbar-brand">
-            <a href="/">Web Security Compliance Checker</a>
-        </div>
-        <ul class="navbar-menu">
-            <li><a href="/api/v1/targets/html">Targets</a></li>
-            <li><a href="/api/v1/scans/html">Scans</a></li>
-            <li><a href="/api/v1/reports/html">Reports</a></li>
-            <li>
-                <form method="post" action="/api/v1/auth/logout" style="display:inline;">
-                    <button type="submit" class="btn-link">Logout</button>
-                </form>
-            </li>
-        </ul>
-    </nav>
-</header>
-
-<main>
-    {% block content %}{% endblock %}
-</main>
-
-<footer>
-    <p>&copy; 2026 Web Security Compliance Checker | ISRO SAC Internship Project</p>
-</footer>
-
-<script src="/static/js/main.js"></script>
-
-<script>
-async function confirmDeleteAll() {
-    const firstCheck = confirm("Are you sure you want to delete ALL data? This includes targets, scans, and PDF reports.");
-    if (!firstCheck) return;
-
-    const secondCheck = confirm("FINAL WARNING: This action cannot be undone. All database records will be purged. Do you really want to proceed?");
-    if (secondCheck) {
-        try {
-            const response = await fetch('/api/v1/reports/delete-all', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
+    <title>WebSec Audit | Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'cyber-green': '#00ff41',
+                        'accent-blue': '#3b82f6',
+                        'panel-light': '#ffffff',
+                        'panel-dark': '#111111',
+                    }
                 }
-            });
-
-            if (response.ok) {
-                alert("Success: The database has been cleared.");
-                window.location.href = "/";
-            } else if (response.status === 401) {
-                alert("Session expired. Please log in again.");
-                window.location.href = "/login";
-            } else {
-                const error = await response.json();
-                alert("Error: " + (error.detail || "Unable to complete request."));
             }
-        } catch (err) {
-            console.error("Cleanup error:", err);
-            alert("Network error: Could not connect to the server.");
         }
+    </script>
+    <style>
+    @keyframes loading-bar {
+        0% { width: 0%; left: 0; }
+        50% { width: 70%; }
+        100% { width: 100%; left: 0; }
     }
-}
-</script>
+    
+    .animate-loading-bar {
+        animation: loading-bar 3s infinite cubic-bezier(0.4, 0, 0.2, 1);
+        position: absolute;
+    }
+</style>
+    <style>
+        /* Matrix background logic */
+        #matrix-canvas { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.1; pointer-events: none; display: none; }
+        .dark #matrix-canvas { display: block; }
+        
+        /* Consistent Glassmorphism Utility */
+        .glass-card {
+            @apply bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm dark:shadow-none transition-all duration-300;
+        }
+        .sidebar-item {
+            @apply flex items-center p-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-accent-blue dark:hover:text-cyber-green transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-[#0a0a0a] text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-500">
+    <canvas id="matrix-canvas"></canvas>
 
-{% block scripts %}{% endblock %}
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-72 bg-white dark:bg-black/40 border-r border-slate-200 dark:border-white/10 flex flex-col z-30">
+            <div class="p-8 text-2xl font-black italic tracking-tighter text-slate-900 dark:text-cyber-green">
+                <span class="text-accent-blue dark:text-cyber-green">#</span>AUDIT_PRO
+            </div>
+            
+            <nav class="flex-1 px-4 space-y-2">
+                <a href="/dashboard" class="sidebar-item font-mono text-sm uppercase tracking-wider">
+                    <i data-lucide="layout-grid" class="mr-3 w-5 h-5"></i> Dashboard
+                </a>
+                <a href="/scans" class="sidebar-item font-mono text-sm uppercase tracking-wider">
+                    <i data-lucide="shield-alert" class="mr-3 w-5 h-5"></i> Security Scans
+                </a>
+            </nav>
+
+            <div class="p-6 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-transparent">
+                <button id="theme-toggle" class="w-full flex items-center justify-between p-4 rounded-2xl glass-card hover:scale-[1.02] active:scale-95 transition-transform">
+                    <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Theme_Mode</span>
+                    <i id="theme-icon" data-lucide="moon" class="w-5 h-5 text-accent-blue dark:text-cyber-green"></i>
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto p-10 relative">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        // Theme Toggle Persistence
+        const toggleBtn = document.getElementById('theme-toggle');
+        const icon = document.getElementById('theme-icon');
+        
+        const setMode = (isDark) => {
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                icon.setAttribute('data-lucide', 'sun');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                icon.setAttribute('data-lucide', 'moon');
+                localStorage.setItem('theme', 'light');
+            }
+            lucide.createIcons();
+        };
+
+        toggleBtn.addEventListener('click', () => setMode(!document.documentElement.classList.contains('dark')));
+        setMode(localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches));
+
+        // Matrix Animation (Optimized)
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        let w = canvas.width = window.innerWidth;
+        let h = canvas.height = window.innerHeight;
+        const columns = Math.floor(w / 20);
+        const drops = Array(columns).fill(1);
+        const draw = () => {
+            ctx.fillStyle = "rgba(10, 10, 10, 0.1)";
+            ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = "#00ff41";
+            ctx.font = "15px monospace";
+            drops.forEach((y, i) => {
+                const text = String.fromCharCode(Math.random() * 128);
+                ctx.fillText(text, i * 20, y * 20);
+                if (y * 20 > h && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            });
+        };
+        setInterval(draw, 50);
+        lucide.createIcons();
+    </script>
 </body>
 </html>

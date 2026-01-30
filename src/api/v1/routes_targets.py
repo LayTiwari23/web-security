@@ -1,10 +1,7 @@
-# src/app/api/v1/routes_targets.py
-
 from __future__ import annotations
+from typing import List, Optional
 
-from typing import List
-
-from fastapi import APIRouter, Depends, HTTPException, Request, status, Form  # Added Form
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
@@ -15,98 +12,26 @@ from src.db.models.user import User
 
 router = APIRouter()
 
-
 # -------------------------------------------------
-# Pydantic schemas (For JSON API)
+# Pydantic schemas (JSON API compatibility)
 # -------------------------------------------------
-
 
 class TargetBase(BaseModel):
-    url: HttpUrl
-    name: str | None = None
-
+    url: str  # String allows for flexible entry; logic handles validation
+    name: Optional[str] = None
 
 class TargetCreate(TargetBase):
     pass
-
 
 class TargetRead(TargetBase):
     id: int
 
     class Config:
-        from_attributes = True  # Updated from orm_mode for Pydantic V2 compatibility
-
-
-# -------------------------------------------------
-# JSON API endpoints
-# -------------------------------------------------
-
-
-@router.get("/", response_model=List[TargetRead])
-def list_targets(
-    db: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    List all targets for the current user via JSON API.
-    """
-    targets = db.query(Target).filter(Target.user_id == current_user.id).all()
-    return targets
-
-
-@router.post(
-    "/",
-    response_model=TargetRead,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_target(
-    target_in: TargetCreate,
-    db: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Create a new target for the current user via JSON API.
-    """
-    target = Target(
-        user_id=current_user.id,
-        url=str(target_in.url),
-        name=target_in.name,
-    )
-    db.add(target)
-    db.commit()
-    db.refresh(target)
-    return target
-
-
-@router.delete("/{target_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_target(
-    target_id: int,
-    db: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Delete a target owned by the current user.
-    """
-    target = (
-        db.query(Target)
-        .filter(Target.id == target_id, Target.user_id == current_user.id)
-        .first()
-    )
-    if not target:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Target not found",
-        )
-
-    db.delete(target)
-    db.commit()
-    return None
-
+        from_attributes = True
 
 # -------------------------------------------------
-# Server-rendered HTML endpoints
+# Server-rendered HTML endpoints (The UI)
 # -------------------------------------------------
-
 
 @router.get("/html", response_class=HTMLResponse)
 async def list_targets_page(
@@ -114,37 +39,53 @@ async def list_targets_page(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Render a page with the user's targets and a simple 'add target' form.
-    """
+    """Render the main targets gallery/list."""
     templates = request.app.state.templates
     targets = db.query(Target).filter(Target.user_id == current_user.id).all()
+    
     return templates.TemplateResponse(
         "targets/list.html",
         {
             "request": request,
             "targets": targets,
             "user": current_user,
+            "APP_NAME": "AUDIT_PRO"
         },
     )
 
+@router.get("/new", response_class=HTMLResponse)
+async def new_target_page(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """Explicit page for adding a new target (linked from Dashboard)."""
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        "targets/new.html",
+        {
+            "request": request,
+            "user": current_user,
+            "APP_NAME": "AUDIT_PRO"
+        },
+    )
 
 @router.post("/html", response_class=HTMLResponse)
 async def create_target_html(
     request: Request,
-    url: str = Form(...),           # Fixed: Now reads from Form body
-    name: str | None = Form(None),   # Fixed: Now reads from Form body
+    url: str = Form(...),
+    name: Optional[str] = Form(None),
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Handle 'add target' form submission from HTML and redirect back to list.
-    """
-    # Create the database record
+    """Process target creation and redirect to list."""
+    # Logic: ensure URL starts with http if user forgets
+    if not url.startswith(('http://', 'https://')):
+        url = f'http://{url}'
+
     target = Target(
         user_id=current_user.id, 
         url=url, 
-        name=name
+        name=name or url.replace('https://', '').replace('http://', '').split('/')[0]
     )
     db.add(target)
     db.commit()
@@ -154,17 +95,13 @@ async def create_target_html(
         status_code=status.HTTP_302_FOUND,
     )
 
-
 @router.post("/{target_id}/delete/html", response_class=HTMLResponse)
 async def delete_target_html(
     target_id: int,
-    request: Request,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Delete a target via HTML form and redirect back to list.
-    """
+    """Securely delete a target."""
     target = (
         db.query(Target)
         .filter(Target.id == target_id, Target.user_id == current_user.id)
@@ -178,3 +115,27 @@ async def delete_target_html(
         url="/api/v1/targets/html",
         status_code=status.HTTP_302_FOUND,
     )
+
+# -------------------------------------------------
+# JSON API (Standard endpoints)
+# -------------------------------------------------
+
+@router.get("/", response_model=List[TargetRead])
+def list_targets(
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    return db.query(Target).filter(Target.user_id == current_user.id).all()
+
+@router.delete("/{target_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_target(
+    target_id: int,
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    target = db.query(Target).filter(Target.id == target_id, Target.user_id == current_user.id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    db.delete(target)
+    db.commit()
+    return None

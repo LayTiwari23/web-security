@@ -1,49 +1,59 @@
-<!-- src/app/templates/auth/register.html -->
 {% extends "base.html" %}
-
-{% block title %}Register - Web Security Compliance Checker{% endblock %}
-
 {% block content %}
-<div class="auth-container">
-    <h1>Register</h1>
-
-    {% if error %}
-        <div class="alert alert-error">
-            {{ error }}
-        </div>
-    {% endif %}
-
-    <form method="post" action="/api/v1/auth/register/html" class="auth-form">
-        <div class="form-group">
-            <label for="email">Email</label>
-            <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                placeholder="you@example.com"
-            >
+<div class="min-h-[80vh] flex items-center justify-center">
+    <div class="glass-card w-full max-w-lg p-10 rounded-3xl border-t-8 border-t-accent-blue dark:border-t-cyber-green">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">User_Enrollment</h1>
+            <p class="text-slate-500 dark:text-slate-400 font-mono text-[10px] mt-2 uppercase tracking-[0.2em]">Create_New_Authorized_Profile</p>
         </div>
 
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                minlength="6"
-            >
-        </div>
+     <form action="/api/v1/auth/register/html" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Primary_Email</label>
+                <input type="email" name="email" required 
+                    class="w-full px-4 py-4 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl outline-none text-sm font-mono focus:border-accent-blue dark:focus:border-cyber-green transition-all"
+                    placeholder="agent@webspec.local">
+            </div>
 
-        <div class="form-actions">
-            <button type="submit">Create account</button>
-        </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Agent_UID</label>
+                <input type="text" name="username" required 
+                    class="w-full px-4 py-4 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl outline-none text-sm font-mono"
+                    placeholder="USERNAME">
+            </div>
 
-        <p class="auth-toggle">
-            Already have an account?
-            <a href="/api/v1/auth/login">Login here</a>.
-        </p>
-    </form>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Security_Role</label>
+                <select name="role" class="w-full px-4 py-4 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl outline-none text-sm font-mono appearance-none">
+                    <option value="auditor">SECURITY_AUDITOR</option>
+                    <option value="admin">SYSTEM_ADMIN</option>
+                </select>
+            </div>
+
+            <div class="md:col-span-2">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Secret_Passphrase</label>
+                <input type="password" name="password" required 
+                    class="w-full px-4 py-4 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl outline-none text-sm font-mono"
+                    placeholder="••••••••">
+            </div>
+
+            <div class="md:col-span-2 flex items-start space-x-3 p-4 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                <input type="checkbox" required class="mt-1 w-4 h-4 rounded border-slate-300 dark:border-white/10 text-accent-blue dark:text-cyber-green focus:ring-0">
+                <p class="text-[9px] font-mono text-slate-500 leading-relaxed uppercase">
+                    I agree to the <span class="text-slate-800 dark:text-white font-bold underline">Operational_Security_Protocol</span> and acknowledge that all audit actions are logged for compliance monitoring.
+                </p>
+            </div>
+
+            <button type="submit" class="md:col-span-2 py-4 bg-slate-900 dark:bg-cyber-green text-white dark:text-black font-black uppercase text-xs tracking-[0.3em] rounded-xl hover:shadow-2xl transition-all">
+                Initialize_User_Auth
+            </button>
+        </form>
+
+        <div class="mt-8 text-center">
+            <p class="text-xs text-slate-500 font-mono">
+                Already Authenticated? <a href="/login" class="text-accent-blue dark:text-cyber-green underline font-bold uppercase">Return_To_Login</a>
+            </p>
+        </div>
+    </div>
 </div>
 {% endblock %}

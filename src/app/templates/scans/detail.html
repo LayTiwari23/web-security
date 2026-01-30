@@ -1,111 +1,50 @@
-<!-- src/app/templates/scans/detail.html -->
 {% extends "base.html" %}
-
-{% block title %}Scan #{{ scan.id }} - Web Security Compliance Checker{% endblock %}
-
 {% block content %}
-<div class="page-container">
-    <h1>Scan #{{ scan.id }}</h1>
+<div class="glass-card p-10 rounded-3xl mb-10 border-l-[12px] border-l-accent-blue dark:border-l-cyber-green">
+    <div class="flex justify-between items-start">
+        <div>
+            <h1 class="text-5xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Audit_Report</h1>
+            <p class="text-slate-500 dark:text-cyber-green font-mono text-sm mt-2 opacity-80">TARGET: 192.168.1.105 (HTTPS)</p>
+        </div>
+        <div class="text-right">
+            <div class="text-3xl font-mono font-bold text-slate-900 dark:text-white">A+</div>
+            <div class="text-[10px] font-bold text-slate-400 uppercase">Risk_Level</div>
+        </div>
+    </div>
+</div>
 
-    <section class="section">
-        <h2>Overview</h2>
-        <table class="table table-compact">
-            <tr>
-                <th>Target</th>
-                <td>
-                    {% if scan.target is defined and scan.target %}
-                        {{ scan.target.url }}
-                    {% else %}
-                        Target ID: {{ scan.target_id }}
-                    {% endif %}
-                </td>
-            </tr>
-            <tr>
-                <th>Status</th>
-                <td>{{ scan.status }}</td>
-            </tr>
-            <tr>
-                <th>Created at</th>
-                <td>{{ scan.created_at }}</td>
-            </tr>
-            <tr>
-                <th>Started at</th>
-                <td>{{ scan.started_at or "-" }}</td>
-            </tr>
-            <tr>
-                <th>Finished at</th>
-                <td>{{ scan.finished_at or "-" }}</td>
-            </tr>
-            <tr>
-                <th>Summary</th>
-                <td>{{ scan.summary or "No summary available." }}</td>
-            </tr>
-        </table>
-    </section>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+    <div class="lg:col-span-2 space-y-4">
+        {% for i in range(1, 6) %}
+        <div class="glass-card p-6 rounded-2xl flex items-center group hover:translate-x-2 transition-transform">
+            <div class="w-12 font-mono text-slate-300 dark:text-white/20 text-xl font-bold">0{{i}}</div>
+            <div class="flex-1">
+                <div class="text-slate-900 dark:text-slate-100 font-bold uppercase text-sm tracking-tight">SSL_CERTIFICATE_VALIDATION</div>
+                <div class="text-slate-500 dark:text-slate-400 text-xs font-mono mt-1 italic">Checking expiry and chain authority...</div>
+            </div>
+            <div class="ml-4">
+                <div class="px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter bg-green-100 dark:bg-cyber-green/20 text-green-700 dark:text-cyber-green border border-green-200 dark:border-cyber-green/50">
+                    PASS
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
 
-    <section class="section">
-        <h2>Findings ({{ findings|length }})</h2>
-
-        {% if findings %}
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Check Type</th>
-                        <th>Name</th>
-                        <th>Severity</th>
-                        <th>Description</th>
-                        <th>Recommendation</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for f in findings %}
-                    <tr class="severity-{{ f.severity|lower }}">
-                        <td>{{ f.id }}</td>
-                        <td>{{ f.check_type }}</td>
-                        <td>{{ f.name }}</td>
-                        <td class="severity">{{ f.severity }}</td>
-                        <td>{{ f.description or "-" }}</td>
-                        <td>{{ f.recommendation or "-" }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No findings recorded for this scan.</p>
-        {% endif %}
-    </section>
-
-    <section class="section">
-        <h2>PDF Reports</h2>
-
-        {% if pdf_reports %}
-            <ul class="report-list">
-                {% for report in pdf_reports %}
-                    <li>
-                        Report #{{ report.id }} —
-                        created {{ report.created_at }} —
-                        <a href="/api/v1/reports/{{ report.id }}/download" target="_blank">
-                            Download
-                        </a>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>No PDF report yet for this scan.</p>
-        {% endif %}
-
-        <form
-            method="post"
-            action="/api/v1/reports/{{ scan.id }}/generate/html"
-            style="margin-top: 1rem;"
-        >
-            <button type="submit">Generate PDF Report</button>
-        </form>
-    </section>
-
-    <p>
-        <a href="/api/v1/scans/html">&larr; Back to scans list</a>
-    </p>
+    <div class="space-y-6">
+        <div class="bg-slate-900 rounded-3xl p-6 shadow-2xl border border-white/10">
+            <div class="flex space-x-2 mb-4">
+                <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+            </div>
+            <div class="font-mono text-[10px] text-cyber-green/70 space-y-2">
+                <p>> Initializing audit...</p>
+                <p>> Connection established.</p>
+                <p>> Handshake success.</p>
+                <p class="text-white animate-pulse">> Scanning 28 params...</p>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

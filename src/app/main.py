@@ -1,5 +1,3 @@
-# src/app/main.py
-
 from __future__ import annotations
 import os
 from pathlib import Path
@@ -39,13 +37,10 @@ def create_app() -> FastAPI:
     # -------------------------------------------------------------------
     @app.middleware("http")
     async def force_https_behind_proxy(request: Request, call_next):
-        # Detect the ngrok HTTPS forwarding header
         if request.headers.get("x-forwarded-proto") == "https":
-            # Force all generated URLs (CSS/JS) to use 'https'
             request.scope["scheme"] = "https"
         return await call_next(request)
 
-    # Enable CORS for frontend-backend communication
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -57,28 +52,23 @@ def create_app() -> FastAPI:
     # -------------------------------------------------------------------
     # ✅ ROBUST PATH CONFIGURATION (Absolute Paths)
     # -------------------------------------------------------------------
-    
-    # Absolute path to this file (src/app/main.py)
     current_file_path = os.path.abspath(__file__)
-    # Path to 'src' directory
-    src_dir = os.path.dirname(os.path.dirname(current_file_path))
-    # Path to 'src/app/templates'
+    # Go up two levels from src/app/main.py to get to project root
+    src_dir = os.path.dirname(os.path.dirname(current_file_path)) 
+    
     templates_dir = os.path.join(src_dir, "app", "templates")
-    # Path to 'src/static'
     static_path = os.path.join(src_dir, "static")
 
-    # Mount static files from src/static
+    # Mount static files
     if os.path.exists(static_path):
         app.mount("/static", StaticFiles(directory=static_path), name="static")
-    else:
-        print(f"CRITICAL: Static directory not found at {static_path}")
 
     # Use absolute path for templates
     templates = Jinja2Templates(directory=templates_dir)
     app.state.templates = templates
 
     # -------------------------------------------------------------------
-    # ROUTERS
+    # ✅ REGISTER ROUTERS
     # -------------------------------------------------------------------
     app.include_router(routes_auth.router, prefix="/api/v1/auth", tags=["auth"])
     app.include_router(routes_targets.router, prefix="/api/v1/targets", tags=["targets"])
@@ -88,16 +78,31 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     # -------------------------------------------------------------------
-    # UI ROUTES (Frontend)
+    # ✅ FRONTEND / UI ROUTES
     # -------------------------------------------------------------------
 
     @app.get("/", response_class=HTMLResponse)
-    async def index(request: Request) -> Any:
-        return templates.TemplateResponse("dashboard.html", {"request": request})
+    @app.get("/dashboard", response_class=HTMLResponse)
+    async def dashboard_page(request: Request) -> Any:
+        # Pass APP_NAME so base.html has a title
+        return templates.TemplateResponse("dashboard.html", {
+            "request": request, 
+            "APP_NAME": "AUDIT_PRO"
+        })
 
     @app.get("/login", response_class=HTMLResponse)
     async def login_page(request: Request) -> Any:
-        return templates.TemplateResponse("auth/login.html", {"request": request})
+        return templates.TemplateResponse("auth/login.html", {
+            "request": request, 
+            "APP_NAME": "AUDIT_PRO"
+        })
+
+    @app.get("/register", response_class=HTMLResponse)
+    async def register_page(request: Request) -> Any:
+        return templates.TemplateResponse("auth/register.html", {
+            "request": request, 
+            "APP_NAME": "AUDIT_PRO"
+        })
 
     @app.get("/health", tags=["internal"])
     async def healthcheck(db=Depends(get_db)) -> Dict[str, str]:

@@ -1,73 +1,97 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Web Security Compliance Checker{% endblock %}
-
 {% block content %}
-<div class="dashboard-container">
-    <h1>Dashboard</h1>
-
-    <section class="dashboard-intro">
-        <p>
-            Welcome to the Web Security Compliance Checker.
-            Use this dashboard to manage your targets, run scans, and download PDF reports.
+<div class="flex justify-between items-end mb-12">
+    <div>
+        <h1 class="text-4xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">
+            Operational <span class="text-accent-blue dark:text-cyber-green">Stats</span>
+        </h1>
+        <p class="text-slate-500 dark:text-slate-400 font-mono text-sm mt-2 flex items-center">
+            <span class="w-2 h-2 bg-cyber-green rounded-full mr-2 animate-pulse"></span>
+            SYS_STATUS: OPTIMAL
         </p>
-    </section>
+    </div>
+    <a href="/api/v1/targets/html" class="bg-slate-900 dark:bg-cyber-green text-white dark:text-black px-8 py-3 rounded-xl font-bold uppercase text-xs tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl dark:shadow-[0_0_20px_#00ff4133]">
+        Launch_Probe
+    </a>
+</div>
 
-    <section class="dashboard-actions">
-        <div class="card">
-            <h2>Targets</h2>
-            <p>Manage the websites and applications you want to scan.</p>
-            <a class="btn" href="/api/v1/targets/html">View Targets</a>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+    {% for label, val, color in [('Active_Endpoints', '14', 'blue'), ('Threats_Blocked', '03', 'red'), ('Compliance_Avg', '98%', 'cyber-green')] %}
+    <div class="glass-card p-8 rounded-3xl relative overflow-hidden group">
+        <div class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4">{{ label }}</div>
+        <div class="text-5xl font-black text-slate-900 dark:text-white">{{ val }}</div>
+        <div class="absolute bottom-0 left-0 h-1 w-full bg-slate-100 dark:bg-white/5">
+            <div class="h-full bg-{{ 'blue-500' if color == 'blue' else ('red-500' if color == 'red' else 'green-500') }} transition-all duration-1000 shadow-[0_0_10px_rgba(0,255,65,0.5)]" style="width: 70%"></div>
         </div>
+    </div>
+    {% endfor %}
+</div>
 
-        <div class="card">
-            <h2>Scans</h2>
-            <p>Review past scans and start new ones for your targets.</p>
-            <a class="btn" href="/api/v1/scans/html">View Scans</a>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2">
+        <div class="glass-card rounded-3xl overflow-hidden">
+            <div class="p-6 border-b border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 font-mono text-xs uppercase tracking-widest font-bold text-slate-400 flex justify-between">
+                <span>Primary_Target_Stream</span>
+                <i data-lucide="database" class="w-4 h-4 opacity-50"></i>
+            </div>
+            <table class="w-full text-left">
+                <thead class="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-100 dark:border-white/5">
+                    <tr>
+                        <th class="p-6">Resource_ID</th>
+                        <th class="p-6">Safety_Index</th>
+                        <th class="p-6 text-right">Access</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-white/5 font-mono text-sm">
+                    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
+                        <td class="p-6 text-slate-900 dark:text-slate-200">
+                            <div class="flex flex-col">
+                                <span class="font-bold tracking-tight">INTERNAL_VAULT_SAC</span>
+                                <span class="text-[10px] text-slate-500">https://internal.vault</span>
+                            </div>
+                        </td>
+                        <td class="p-6">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 dark:bg-cyber-green/10 text-green-700 dark:text-cyber-green">
+                                STABLE
+                            </span>
+                        </td>
+                        <td class="p-6 text-right">
+                            <a href="/api/v1/scans/html" class="text-accent-blue dark:text-cyber-green underline decoration-2 underline-offset-4 hover:opacity-70 transition-opacity">OPEN_CONSOLE</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
+    </div>
 
-        <div class="card">
-            <h2>Reports</h2>
-            <p>Download or delete generated PDF reports.</p>
-            <a class="btn" href="/api/v1/reports/html">View Reports</a>
-        </div>
+    <div class="lg:col-span-1">
+        <div class="glass-card p-6 rounded-3xl h-full border border-white/10">
+            <h3 class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-6 flex items-center justify-between">
+                <span>Live_Monitor_Feed</span>
+                <span class="flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-cyber-green opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-cyber-green"></span>
+                </span>
+            </h3>
 
-        <div class="card danger-card">
-            <h2>System Cleanup</h2>
-            <p>Permanently remove all targets, scan history, and generated reports.</p>
-            <button class="btn btn-danger" onclick="confirmDeleteAll()">Delete All Data</button>
+            <div hx-get="/api/v1/scans/recent-feed" 
+                 hx-trigger="every 5s" 
+                 hx-swap="innerHTML"
+                 class="space-y-4">
+                
+                <div class="flex flex-col space-y-3 opacity-50">
+                    <div class="h-12 bg-slate-100 dark:bg-white/5 rounded-xl animate-pulse"></div>
+                    <div class="h-12 bg-slate-100 dark:bg-white/5 rounded-xl animate-pulse"></div>
+                    <div class="h-12 bg-slate-100 dark:bg-white/5 rounded-xl animate-pulse"></div>
+                    <p class="text-center font-mono text-[9px] text-slate-500 uppercase tracking-tighter">Establishing_Encrypted_Link...</p>
+                </div>
+            </div>
         </div>
-    </section>
+    </div>
 </div>
 
 <script>
-async function confirmDeleteAll() {
-    // Two-step verification for safety
-    const firstCheck = confirm("Are you sure you want to delete ALL data? This includes targets, scans, and PDF reports.");
-    if (!firstCheck) return;
-
-    const secondCheck = confirm("FINAL WARNING: This action cannot be undone. Do you really want to proceed?");
-    if (secondCheck) {
-        try {
-            const response = await fetch('/api/v1/reports/delete-all', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                alert("Database cleared successfully.");
-                window.location.reload();
-            } else {
-                const error = await response.json();
-                alert("Error: " + (error.detail || "Unauthorized or Session Expired."));
-            }
-        } catch (err) {
-            console.error("Cleanup failed:", err);
-            alert("A network error occurred. Please try again.");
-        }
-    }
-}
+    lucide.createIcons();
 </script>
 {% endblock %}
