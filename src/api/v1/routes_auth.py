@@ -16,6 +16,7 @@ from src.services.auth_service import (
 )
 
 router = APIRouter()
+APP_NAME = "WebSec Audit"
 
 # -------------------------------------------------
 # Server-rendered HTML endpoints (UI)
@@ -23,18 +24,18 @@ router = APIRouter()
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    """Render the themed login gateway."""
+    """Render the themed WebSec Audit login gateway."""
     templates = request.app.state.templates
     return templates.TemplateResponse(
         "auth/login.html", 
-        {"request": request, "APP_NAME": "AUDIT_PRO"}
+        {"request": request, "APP_NAME": APP_NAME}
     )
 
 @router.post("/login/html", response_class=HTMLResponse)
 async def login_submit_html(
     request: Request,
-    email: str = Form(...),
-    password: str = Form(...),
+    email: str = Form(...),    # ✅ Matches <input name="email"> in login.html
+    password: str = Form(...), # ✅ Matches <input name="password"> in login.html
     db: Session = Depends(get_db_session),
 ):
     """Handle login form with secure cookie injection."""
@@ -47,7 +48,7 @@ async def login_submit_html(
             {
                 "request": request,
                 "error": "ACCESS_DENIED: Invalid Credentials",
-                "APP_NAME": "AUDIT_PRO"
+                "APP_NAME": APP_NAME
             },
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
@@ -73,7 +74,7 @@ async def register_page(request: Request):
     templates = request.app.state.templates
     return templates.TemplateResponse(
         "auth/register.html", 
-        {"request": request, "APP_NAME": "AUDIT_PRO"}
+        {"request": request, "APP_NAME": APP_NAME}
     )
 
 @router.post("/register/html", response_class=HTMLResponse)
@@ -93,7 +94,7 @@ async def register_submit_html(
             {
                 "request": request,
                 "error": "IDENTITY_EXISTS: Email already registered",
-                "APP_NAME": "AUDIT_PRO"
+                "APP_NAME": APP_NAME
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
@@ -117,6 +118,7 @@ async def register_submit_html(
 @router.post("/logout")
 async def logout(request: Request):
     """Clear authorization cookie and return to login."""
+    # Redirecting to the prefixed auth login route
     response = RedirectResponse(url="/api/v1/auth/login", status_code=status.HTTP_302_FOUND)
     response.delete_cookie("access_token")
     return response
@@ -130,6 +132,7 @@ def api_login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db_session),
 ):
+    """JSON-based login for API tools/mobile clients."""
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(

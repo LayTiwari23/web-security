@@ -139,7 +139,7 @@ async def list_scans_page(
             "request": request, 
             "scans": scans, 
             "user": current_user,
-            "APP_NAME": "AUDIT_PRO"
+            "APP_NAME": "WEBSEC AUDIT" # ✅ Updated here
         },
     )
 
@@ -195,7 +195,7 @@ async def scan_detail_page(
             "results": findings,
             "report": report, 
             "user": current_user,
-            "APP_NAME": "AUDIT_PRO"
+            "APP_NAME": "WebSec Audit" # ✅ Updated here
         },
     )
 

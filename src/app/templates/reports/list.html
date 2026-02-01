@@ -1,89 +1,79 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex justify-between items-end mb-10">
+<div class="flex justify-between items-end mb-12">
     <div>
-        <h1 class="text-xs font-mono text-accent-blue dark:text-cyber-green/60 uppercase tracking-[0.5em] mb-2">Intelligence_Vault_v1.0</h1>
-        <h2 class="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase">
-            PDF <span class="text-accent-blue dark:text-cyber-green">Reports</span>
-        </h2>
+        <h1 class="text-4xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">
+            Audit <span class="text-accent-blue dark:text-cyber-green">Reports</span>
+        </h1>
+        <p class="text-slate-500 dark:text-slate-400 font-mono text-sm mt-2 flex items-center">
+            <span class="w-2 h-2 bg-cyber-green rounded-full mr-2 animate-pulse"></span>
+            REPOS_STATUS: SECURE
+        </p>
     </div>
     
-    {% if reports %}
-    <form method="post" action="/api/v1/reports/delete-all/html" onsubmit="return confirm('WIPE_ALL_INTELLIGENCE: This will permanently delete every PDF report. Proceed?');">
-        <button type="submit" class="group flex items-center px-4 py-2 border border-red-500/50 text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all rounded-lg">
-            <i data-lucide="trash-2" class="w-3 h-3 mr-2"></i> Purge_All_Data
+    <form action="/api/v1/reports/delete-all/html" method="POST" onsubmit="return confirm('CRITICAL: Purge all authorized reports?');">
+        <button type="submit" class="text-[10px] font-bold text-red-500/50 hover:text-red-500 uppercase tracking-widest transition-colors border border-red-500/20 px-4 py-2 rounded-lg hover:bg-red-500/5">
+            Purge_All_Archive
         </button>
     </form>
-    {% endif %}
 </div>
 
-<div class="glass-card rounded-3xl overflow-hidden">
-    {% if reports %}
-    <table class="w-full text-left border-collapse">
-        <thead class="bg-slate-50 dark:bg-white/5 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200 dark:border-white/10">
+<div class="glass-card rounded-3xl overflow-hidden border border-white/5">
+    <div class="p-6 border-b border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 font-mono text-xs uppercase tracking-widest font-bold text-slate-400 flex justify-between">
+        <span>Authorized_PDF_Vault</span>
+        <i data-lucide="archive" class="w-4 h-4 opacity-50"></i>
+    </div>
+    
+    <table class="w-full text-left">
+        <thead class="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-100 dark:border-white/5 bg-slate-50/30 dark:bg-transparent">
             <tr>
-                <th class="p-6">Report_UID</th>
-                <th class="p-6">Origin_Scan</th>
-                <th class="p-6">Internal_Path</th>
-                <th class="p-6">Generation_Date</th>
-                <th class="p-6 text-right">Access</th>
+                <th class="p-6">Report_Identity</th>
+                <th class="p-6">Scan_Ref</th>
+                <th class="p-6">Format</th>
+                <th class="p-6 text-right">Actions</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100 dark:divide-white/5 font-mono text-xs">
+        <tbody class="divide-y divide-slate-100 dark:divide-white/5 font-mono text-sm">
             {% for report in reports %}
             <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
-                <td class="p-6 text-slate-400">#{{ "%03d" | format(report.id) }}</td>
-                
-                <td class="p-6 text-accent-blue dark:text-cyber-green font-bold">
-                    SCAN_{{ report.scan_id }}
+                <td class="p-6 text-slate-900 dark:text-slate-200">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="file-text" class="w-4 h-4 text-accent-blue dark:text-cyber-green"></i>
+                        <span class="font-bold tracking-tight">{{ report.file_path.split('/')[-1] }}</span>
+                    </div>
                 </td>
-
                 <td class="p-6">
-                    <code class="px-2 py-1 bg-slate-100 dark:bg-black/40 rounded text-[10px] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10">
-                        .../{{ report.file_path.split('/')[-1] }}
-                    </code>
+                    <span class="text-slate-500 italic">#SCAN_{{ report.scan_id }}</span>
                 </td>
-
-                <td class="p-6 text-slate-500 uppercase">
-                    {{ report.created_at.strftime('%Y-%m-%d %H:%M') if report.created_at else 'NULL_TIME' }}
+                <td class="p-6">
+                    <span class="text-[10px] bg-slate-100 dark:bg-white/5 px-2 py-1 rounded text-slate-500">PDF_DOC</span>
                 </td>
-
-                <td class="p-6 text-right">
-                    <div class="flex justify-end space-x-2">
-                        <a href="/api/v1/reports/{{ report.id }}/download" 
-                           target="_blank"
-                           class="p-2 bg-slate-900 dark:bg-cyber-green text-white dark:text-black rounded-lg hover:scale-105 transition-transform shadow-lg" 
-                           title="Decrypt and Download">
-                            <i data-lucide="download-cloud" class="w-4 h-4"></i>
-                        </a>
-
-                        <form method="post" action="/api/v1/reports/{{ report.id }}/delete/html" onsubmit="return confirm('DELETE_REPORT: Proceed with physical file shredding?');">
-                            <button type="submit" 
-                                    class="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all" 
-                                    title="Shred File">
-                                <i data-lucide="x-circle" class="w-4 h-4"></i>
-                            </button>
-                        </form>
+                <td class="p-6 text-right space-x-4">
+                    <a href="/api/v1/reports/{{ report.id }}/download" 
+                       class="text-accent-blue dark:text-cyber-green font-bold hover:underline underline-offset-4 decoration-2">
+                        DOWNLOAD
+                    </a>
+                    
+                    <form action="/api/v1/reports/{{ report.id }}/delete/html" method="POST" class="inline">
+                        <button type="submit" class="text-red-400/50 hover:text-red-500 transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="p-12 text-center">
+                    <div class="flex flex-col items-center opacity-30">
+                        <i data-lucide="folder-open" class="w-12 h-12 mb-4"></i>
+                        <p class="text-[10px] font-bold uppercase tracking-widest">Archive_Empty: No_Reports_Generated</p>
                     </div>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    {% else %}
-    <div class="p-20 text-center">
-        <div class="inline-flex p-6 bg-slate-100 dark:bg-white/5 rounded-full mb-6 text-slate-300 dark:text-white/10">
-            <i data-lucide="file-warning" class="w-12 h-12"></i>
-        </div>
-        <p class="text-slate-500 font-mono text-sm uppercase tracking-widest">
-            Vault_Empty: No intelligence reports compiled yet.
-        </p>
-        <a href="/api/v1/scans/html" class="mt-6 inline-block bg-accent-blue dark:bg-cyber-green text-white dark:text-black px-6 py-2 rounded-lg font-bold uppercase text-[10px] tracking-widest hover:scale-105 transition-transform">
-            Go_To_Scanning_Console
-        </a>
-    </div>
-    {% endif %}
 </div>
 
 <script>

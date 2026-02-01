@@ -1,58 +1,62 @@
 {% extends "base.html" %}
+
 {% block content %}
-<div class="min-h-[80vh] flex items-center justify-center">
-    <div class="glass-card w-full max-w-lg p-10 rounded-3xl border-t-8 border-t-accent-blue dark:border-t-cyber-green">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">User_Enrollment</h1>
-            <p class="text-slate-500 dark:text-slate-400 font-mono text-[10px] mt-2 uppercase tracking-[0.2em]">Create_New_Authorized_Profile</p>
-        </div>
+<div class="max-w-2xl mx-auto mt-10">
+    <div class="text-center mb-10">
+        <h1 class="text-5xl font-black text-white italic uppercase tracking-tighter mb-2">
+            USER_<span class="text-cyber-green">ENROLLMENT</span>
+        </h1>
+        <p class="text-slate-500 font-mono text-[10px] tracking-[0.3em] uppercase">
+            CREATE_NEW_AUTHORIZED_PROFILE
+        </p>
+    </div>
 
-     <form action="/api/v1/auth/register/html" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="md:col-span-2">
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Primary_Email</label>
-                <input type="email" name="email" required 
-                    class="w-full px-4 py-4 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl outline-none text-sm font-mono focus:border-accent-blue dark:focus:border-cyber-green transition-all"
-                    placeholder="agent@webspec.local">
+    <div class="glass-card p-10 rounded-3xl border-t-4 border-cyber-green relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyber-green to-transparent opacity-50"></div>
+        
+        <form action="/api/v1/auth/register/html" method="POST" class="space-y-6">
+            {% if error %}
+            <div class="bg-red-500/10 border border-red-500/50 p-4 rounded-xl mb-6">
+                <p class="text-red-500 font-mono text-[10px] uppercase tracking-widest text-center">{{ error }}</p>
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Primary_Email</label>
+                    <input type="email" name="email" required placeholder="agent@websec.local" 
+                           class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyber-green outline-none transition-all font-mono">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Security_Role</label>
+                    <div class="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-500 font-mono">
+                        SECURITY_AUDITOR
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Agent_UID</label>
-                <input type="text" name="username" required 
-                    class="w-full px-4 py-4 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl outline-none text-sm font-mono"
-                    placeholder="USERNAME">
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Secret_Passphrase</label>
+                <input type="password" name="password" required placeholder="••••••••••••" 
+                       class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyber-green outline-none transition-all font-mono">
             </div>
 
-            <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Security_Role</label>
-                <select name="role" class="w-full px-4 py-4 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl outline-none text-sm font-mono appearance-none">
-                    <option value="auditor">SECURITY_AUDITOR</option>
-                    <option value="admin">SYSTEM_ADMIN</option>
-                </select>
-            </div>
-
-            <div class="md:col-span-2">
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Secret_Passphrase</label>
-                <input type="password" name="password" required 
-                    class="w-full px-4 py-4 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl outline-none text-sm font-mono"
-                    placeholder="••••••••">
-            </div>
-
-            <div class="md:col-span-2 flex items-start space-x-3 p-4 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                <input type="checkbox" required class="mt-1 w-4 h-4 rounded border-slate-300 dark:border-white/10 text-accent-blue dark:text-cyber-green focus:ring-0">
-                <p class="text-[9px] font-mono text-slate-500 leading-relaxed uppercase">
-                    I agree to the <span class="text-slate-800 dark:text-white font-bold underline">Operational_Security_Protocol</span> and acknowledge that all audit actions are logged for compliance monitoring.
+            <div class="flex items-start gap-3 p-4 bg-white/5 rounded-xl border border-white/5">
+                <input type="checkbox" required class="mt-1 accent-cyber-green">
+                <p class="text-[9px] text-slate-500 leading-relaxed uppercase tracking-tighter">
+                    I AGREE TO THE <span class="text-white font-bold">OPERATIONAL SECURITY PROTOCOL</span> AND ACKNOWLEDGE THAT ALL AUDIT ACTIONS ARE LOGGED FOR COMPLIANCE MONITORING.
                 </p>
             </div>
 
-            <button type="submit" class="md:col-span-2 py-4 bg-slate-900 dark:bg-cyber-green text-white dark:text-black font-black uppercase text-xs tracking-[0.3em] rounded-xl hover:shadow-2xl transition-all">
-                Initialize_User_Auth
+            <button type="submit" class="w-full bg-cyber-green hover:bg-green-400 text-black font-black py-4 rounded-xl uppercase tracking-[0.2em] transition-all transform hover:scale-[1.01] active:scale-95 shadow-[0_0_30px_rgba(0,255,65,0.2)]">
+                INITIALIZE_USER_AUTH
             </button>
         </form>
 
         <div class="mt-8 text-center">
-            <p class="text-xs text-slate-500 font-mono">
-                Already Authenticated? <a href="/login" class="text-accent-blue dark:text-cyber-green underline font-bold uppercase">Return_To_Login</a>
-            </p>
+            <a href="/api/v1/auth/login" class="text-slate-500 hover:text-cyber-green text-[10px] font-bold uppercase tracking-widest transition-colors">
+                Already Authenticated? <span class="underline decoration-cyber-green underline-offset-4">Return_to_Login</span>
+            </a>
         </div>
     </div>
 </div>

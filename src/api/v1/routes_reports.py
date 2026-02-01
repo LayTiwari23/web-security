@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import time
 from pathlib import Path
 from typing import List
 
@@ -9,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_current_user, get_db_session
-from src.app.config import get_settings # Updated import path to match your main.py
+from src.app.config import get_settings
 from src.db.models.pdf_report import PdfReport
 from src.db.models.user import User
 from src.services.report_service import (
@@ -20,6 +21,10 @@ from src.workers.tasks_scans import generate_pdf_report_task
 
 router = APIRouter()
 settings = get_settings()
+
+# ✅ Constant Configuration
+PDF_STORAGE_DIR = "/app/pdf_reports"
+APP_NAME = "WebSec Audit"
 
 # -------------------------------------------------
 # Pydantic schemas
@@ -38,41 +43,59 @@ class ReportRead(BaseModel):
 # -------------------------------------------------
 
 @router.get("/{report_id}/download")
-def download_report(
+async def download_report(
     report_id: int,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Serves the PDF file. Handles both Docker volume and local development paths.
+    Serves the PDF file. 
+    Handles Docker volume pathing and syncs with the database 'file_path'.
     """
+    # 1. Primary lookup by report_id
     report = db.query(PdfReport).filter(
         PdfReport.id == report_id, 
         PdfReport.user_id == current_user.id
     ).first()
 
+    # 2. Fallback lookup by scan_id (in case frontend passes scan_id)
     if not report:
-        raise HTTPException(status_code=404, detail="Report record not found")
+        report = db.query(PdfReport).filter(
+            PdfReport.scan_id == report_id,
+            PdfReport.user_id == current_user.id
+        ).first()
 
-    # Determine storage path
-    # If in Docker, use /app/pdf_reports. If local, use the path defined in settings.
-    file_path = Path(report.file_path)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report record not found in database.")
+
+    # 3. Resolve the path (e.g., mapping 'github.pdf' from DB to /app/pdf_reports/)
+    filename = os.path.basename(report.file_path)
+    file_path = Path(PDF_STORAGE_DIR) / filename
+
+    # ⏳ Race Condition Handling:
+    # If the user clicks 'Download' before the ~40s generation finishes, 
+    # we retry for 3 seconds before throwing the final 404.
+    retries = 3
+    while not file_path.exists() and retries > 0:
+        time.sleep(1) 
+        retries -= 1
 
     if not file_path.exists():
-        # Fallback check for relative paths in local dev
-        storage_base = Path("pdf_reports")
-        file_path = storage_base / file_path.name
-        
-        if not file_path.exists():
+        # Final fallback check for local/relative paths
+        local_path = Path("pdf_reports") / filename
+        if local_path.exists():
+            file_path = local_path
+        else:
+            print(f"DEBUG: File not found for Scan {report.scan_id} at {file_path}")
             raise HTTPException(
                 status_code=404, 
-                detail="Physical PDF file not found on server storage."
+                detail=f"Physical file '{filename}' missing from storage. Please wait 60s after generation."
             )
 
     return FileResponse(
         path=str(file_path),
         media_type="application/pdf",
-        filename=f"WebSec_Audit_{report.scan_id}.pdf"
+        filename=f"WebSec_Audit_Report_{filename}"
     )
 
 # -------------------------------------------------
@@ -85,9 +108,7 @@ async def list_reports_page(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Renders the central report repository page.
-    """
+    """Renders the central report repository page."""
     templates = request.app.state.templates
     reports = list_reports_for_user(db, user_id=current_user.id)
     return templates.TemplateResponse(
@@ -96,7 +117,7 @@ async def list_reports_page(
             "request": request,
             "reports": reports,
             "user": current_user,
-            "APP_NAME": "AUDIT_PRO" # Consistent UI variable
+            "APP_NAME": APP_NAME 
         },
     )
 
@@ -105,11 +126,8 @@ async def generate_report_html(
     scan_id: int,
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Triggers the background worker to compile the PDF using report_service.
-    """
+    """Triggers the background worker to compile the PDF."""
     generate_pdf_report_task.delay(scan_id=scan_id, user_id=current_user.id)
-    # Redirect back to reports list where user can see the generation progress
     return RedirectResponse(
         url="/api/v1/reports/html", 
         status_code=status.HTTP_302_FOUND
@@ -121,9 +139,7 @@ async def delete_report_html(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Deletes report and redirects back to list.
-    """
+    """Deletes report record and redirects back to list."""
     success = delete_report_for_user(db, report_id=report_id, user_id=current_user.id)
     if not success:
         raise HTTPException(status_code=404, detail="Report deletion failed")
@@ -133,25 +149,17 @@ async def delete_report_html(
         status_code=status.HTTP_302_FOUND
     )
 
-# -------------------------------------------------
-# New Logic: Bulk Cleanup
-# -------------------------------------------------
-
 @router.post("/delete-all/html")
 async def delete_all_reports_html(
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Purges all reports for the current user.
-    """
+    """Purges all reports for the authenticated user."""
     reports = db.query(PdfReport).filter(PdfReport.user_id == current_user.id).all()
-    
     for report in reports:
         delete_report_for_user(db, report_id=report.id, user_id=current_user.id)
     
     db.commit()
-    
     return RedirectResponse(
         url="/api/v1/reports/html", 
         status_code=status.HTTP_302_FOUND

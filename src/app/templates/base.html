@@ -15,61 +15,80 @@
                     colors: {
                         'cyber-green': '#00ff41',
                         'accent-blue': '#3b82f6',
-                        'panel-light': '#ffffff',
-                        'panel-dark': '#111111',
+                        'panel-dark': '#0a0a0a',
                     }
                 }
             }
         }
     </script>
     <style>
-    @keyframes loading-bar {
-        0% { width: 0%; left: 0; }
-        50% { width: 70%; }
-        100% { width: 100%; left: 0; }
-    }
-    
-    .animate-loading-bar {
-        animation: loading-bar 3s infinite cubic-bezier(0.4, 0, 0.2, 1);
-        position: absolute;
-    }
-</style>
-    <style>
-        /* Matrix background logic */
-        #matrix-canvas { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.1; pointer-events: none; display: none; }
-        .dark #matrix-canvas { display: block; }
-        
-        /* Consistent Glassmorphism Utility */
-        .glass-card {
-            @apply bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm dark:shadow-none transition-all duration-300;
+        /* Sidebar Transition Logic */
+        #main-sidebar {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .sidebar-item {
-            @apply flex items-center p-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-accent-blue dark:hover:text-cyber-green transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10;
+        .sidebar-collapsed {
+            width: 80px !important;
+        }
+        .sidebar-collapsed .nav-text, 
+        .sidebar-collapsed .brand-text,
+        .sidebar-collapsed .theme-text {
+            display: none;
+        }
+        .sidebar-collapsed .nav-item {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        @keyframes loading-bar {
+            0% { width: 0%; left: 0; }
+            50% { width: 70%; }
+            100% { width: 100%; left: 0; }
+        }
+        .animate-loading-bar {
+            animation: loading-bar 3s infinite cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute;
+        }
+        #matrix-canvas { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.1; pointer-events: none; }
+        .glass-card {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-[#0a0a0a] text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-500">
+<body class="bg-slate-50 dark:bg-[#0a0a0a] text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-500 overflow-hidden">
     <canvas id="matrix-canvas"></canvas>
 
     <div class="flex h-screen overflow-hidden">
-        <aside class="w-72 bg-white dark:bg-black/40 border-r border-slate-200 dark:border-white/10 flex flex-col z-30">
-            <div class="p-8 text-2xl font-black italic tracking-tighter text-slate-900 dark:text-cyber-green">
-                <span class="text-accent-blue dark:text-cyber-green">#</span>AUDIT_PRO
-            </div>
+        <aside id="main-sidebar" class="w-72 bg-white dark:bg-black/40 border-r border-slate-200 dark:border-white/10 flex flex-col z-30 relative">
             
-            <nav class="flex-1 px-4 space-y-2">
-                <a href="/dashboard" class="sidebar-item font-mono text-sm uppercase tracking-wider">
-                    <i data-lucide="layout-grid" class="mr-3 w-5 h-5"></i> Dashboard
+            <button id="sidebar-toggle" class="absolute -right-3 top-10 bg-cyber-green text-black rounded-full p-1 shadow-lg hover:scale-110 transition-transform z-50">
+                <i id="toggle-icon" data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+
+            <div class="p-6 overflow-hidden whitespace-nowrap">
+                <h1 class="text-cyber-green font-black text-xl tracking-tighter italic uppercase brand-text">
+                    WebSec Audit
+                </h1>
+                <h1 class="text-cyber-green font-black text-xl italic uppercase hidden collapsed-brand text-center">W</h1>
+            </div>
+
+            <nav class="mt-4 px-4 space-y-2">
+                <a href="/dashboard" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-cyber-green hover:bg-white/5 rounded-xl transition-all group">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5 shrink-0"></i>
+                    <span class="nav-text text-[10px] font-bold uppercase tracking-widest leading-none whitespace-nowrap">Dashboard</span>
                 </a>
-                <a href="/scans" class="sidebar-item font-mono text-sm uppercase tracking-wider">
-                    <i data-lucide="shield-alert" class="mr-3 w-5 h-5"></i> Security Scans
+
+                <a href="/api/v1/scans/html" class="nav-item flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-cyber-green hover:bg-white/5 rounded-xl transition-all group">
+                    <i data-lucide="shield-check" class="w-5 h-5 shrink-0"></i>
+                    <span class="nav-text text-[10px] font-bold uppercase tracking-widest leading-none whitespace-nowrap">Security Scans</span>
                 </a>
             </nav>
 
-            <div class="p-6 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-transparent">
-                <button id="theme-toggle" class="w-full flex items-center justify-between p-4 rounded-2xl glass-card hover:scale-[1.02] active:scale-95 transition-transform">
-                    <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Theme_Mode</span>
-                    <i id="theme-icon" data-lucide="moon" class="w-5 h-5 text-accent-blue dark:text-cyber-green"></i>
+            <div class="mt-auto p-6 border-t border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-transparent">
+                <button id="theme-toggle" class="w-full flex items-center justify-between p-4 rounded-2xl glass-card hover:scale-[1.02] active:scale-95 transition-transform overflow-hidden">
+                    <span class="theme-text text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 whitespace-nowrap">Theme_Mode</span>
+                    <i id="theme-icon" data-lucide="moon" class="w-5 h-5 text-accent-blue dark:text-cyber-green shrink-0"></i>
                 </button>
             </div>
         </aside>
@@ -80,23 +99,49 @@
     </div>
 
     <script>
+        // Sidebar Toggle Logic
+        const sidebar = document.getElementById('main-sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const toggleIcon = document.getElementById('toggle-icon');
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('sidebar-collapsed');
+            const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
+            
+            // Update Icon
+            toggleIcon.setAttribute('data-lucide', isCollapsed ? 'chevron-right' : 'chevron-left');
+            
+            // Re-render icons
+            lucide.createIcons();
+            
+            // Save state
+            localStorage.setItem('sidebar-collapsed', isCollapsed);
+        });
+
+        // Restore Sidebar State on Load
+        if (localStorage.getItem('sidebar-collapsed') === 'true') {
+            sidebar.classList.add('sidebar-collapsed');
+            toggleIcon.setAttribute('data-lucide', 'chevron-right');
+        }
+
+        // Initial Icon Render
+        lucide.createIcons();
+
         // Theme Toggle Persistence
         const toggleBtn = document.getElementById('theme-toggle');
-        const icon = document.getElementById('theme-icon');
-        
+        const themeIcon = document.getElementById('theme-icon');
         const setMode = (isDark) => {
             if (isDark) {
                 document.documentElement.classList.add('dark');
-                icon.setAttribute('data-lucide', 'sun');
+                themeIcon.setAttribute('data-lucide', 'sun');
                 localStorage.setItem('theme', 'dark');
             } else {
                 document.documentElement.classList.remove('dark');
-                icon.setAttribute('data-lucide', 'moon');
+                themeIcon.setAttribute('data-lucide', 'moon');
                 localStorage.setItem('theme', 'light');
             }
             lucide.createIcons();
         };
-
         toggleBtn.addEventListener('click', () => setMode(!document.documentElement.classList.contains('dark')));
         setMode(localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches));
 
@@ -120,7 +165,6 @@
             });
         };
         setInterval(draw, 50);
-        lucide.createIcons();
     </script>
 </body>
 </html>

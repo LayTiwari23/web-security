@@ -1,10 +1,9 @@
 from __future__ import annotations
 import os
-from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,15 +24,18 @@ def create_app() -> FastAPI:
     settings = get_settings()
     setup_logging()
 
+    # ✅ Centralized Branding (matches sidebar and templates)
+    APP_NAME = "WebSec Audit"
+
     app = FastAPI(
-        title="Web Security Compliance Checker",
+        title=APP_NAME,
         description="Scan web targets for common security misconfigurations.",
         version="1.0.0",
         debug=settings.DEBUG,
     )
 
     # -------------------------------------------------------------------
-    # ✅ PROTOCOL MIDDLEWARE (Fixes Mixed Content for ngrok)
+    # ✅ PROTOCOL MIDDLEWARE (Ensures HTTPS detection behind proxies)
     # -------------------------------------------------------------------
     @app.middleware("http")
     async def force_https_behind_proxy(request: Request, call_next):
@@ -50,25 +52,26 @@ def create_app() -> FastAPI:
     )
 
     # -------------------------------------------------------------------
-    # ✅ ROBUST PATH CONFIGURATION (Absolute Paths)
+    # ✅ PATH CONFIGURATION (Absolute paths for Docker reliability)
     # -------------------------------------------------------------------
     current_file_path = os.path.abspath(__file__)
-    # Go up two levels from src/app/main.py to get to project root
+    # Navigate from src/app/main.py to the project root
     src_dir = os.path.dirname(os.path.dirname(current_file_path)) 
     
     templates_dir = os.path.join(src_dir, "app", "templates")
     static_path = os.path.join(src_dir, "static")
 
-    # Mount static files
+    # Mount static assets (CSS, JS, Images)
     if os.path.exists(static_path):
         app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-    # Use absolute path for templates
+    # Initialize Jinja2 Templates
     templates = Jinja2Templates(directory=templates_dir)
     app.state.templates = templates
 
     # -------------------------------------------------------------------
     # ✅ REGISTER ROUTERS
+    # These prefixes determine the action URL in your HTML forms.
     # -------------------------------------------------------------------
     app.include_router(routes_auth.router, prefix="/api/v1/auth", tags=["auth"])
     app.include_router(routes_targets.router, prefix="/api/v1/targets", tags=["targets"])
@@ -78,34 +81,28 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     # -------------------------------------------------------------------
-    # ✅ FRONTEND / UI ROUTES
+    # ✅ UI ROUTES (Aligning with sidebar and branding)
     # -------------------------------------------------------------------
 
     @app.get("/", response_class=HTMLResponse)
+    async def root_redirect():
+        """Redirect root traffic to the centralized login gateway."""
+        return RedirectResponse(url="/api/v1/auth/login")
+
     @app.get("/dashboard", response_class=HTMLResponse)
     async def dashboard_page(request: Request) -> Any:
-        # Pass APP_NAME so base.html has a title
+        """Render the main security dashboard."""
         return templates.TemplateResponse("dashboard.html", {
             "request": request, 
-            "APP_NAME": "AUDIT_PRO"
+            "APP_NAME": APP_NAME
         })
 
-    @app.get("/login", response_class=HTMLResponse)
-    async def login_page(request: Request) -> Any:
-        return templates.TemplateResponse("auth/login.html", {
-            "request": request, 
-            "APP_NAME": "AUDIT_PRO"
-        })
-
-    @app.get("/register", response_class=HTMLResponse)
-    async def register_page(request: Request) -> Any:
-        return templates.TemplateResponse("auth/register.html", {
-            "request": request, 
-            "APP_NAME": "AUDIT_PRO"
-        })
+    # Note: Login/Register pages are served from routes_auth.py via prefix
+    # Accessible at: /api/v1/auth/login and /api/v1/auth/register
 
     @app.get("/health", tags=["internal"])
     async def healthcheck(db=Depends(get_db)) -> Dict[str, str]:
+        """Health check endpoint for container orchestration."""
         return {"status": "ok"}
 
     return app
